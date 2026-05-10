@@ -1,15 +1,79 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { User, Bell, Shield, CreditCard, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/Card";
 import toast from 'react-hot-toast';
+import { useDashboardUser } from "@/components/layout/DashboardLayout";
+
+type BillingState = {
+  selectedPlan: string;
+  subscriptionActive: boolean;
+  cardholderName: string;
+  cardNumber: string;
+  expiryDate: string;
+  cvv: string;
+};
+
+const buildDefaultBilling = (displayName: string | undefined, email: string | undefined): BillingState => ({
+  selectedPlan: "Pro Plan",
+  subscriptionActive: true,
+  cardholderName: displayName || email || "Traveler",
+  cardNumber: "4242 4242 4242 4242",
+  expiryDate: "2028-12",
+  cvv: "123",
+});
 
 export default function SettingsPage() {
+  const currentUser = useDashboardUser();
+  const defaultBilling = buildDefaultBilling(currentUser?.name, currentUser?.email);
   const [activeTab, setActiveTab] = useState("profile");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [billing, setBilling] = useState<BillingState>(defaultBilling);
+  const [cardholderName, setCardholderName] = useState(defaultBilling.cardholderName);
+  const [cardNumber, setCardNumber] = useState(defaultBilling.cardNumber);
+  const [expiryDate, setExpiryDate] = useState(defaultBilling.expiryDate);
+  const [cvv, setCvv] = useState(defaultBilling.cvv);
+
+  useEffect(() => {
+    const loadBilling = async () => {
+      try {
+        const res = await fetch("/api/account/billing", { cache: "no-store" });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to fetch billing");
+        }
+
+        const loaded = data.billing as BillingState;
+        setBilling(loaded);
+        setCardholderName(loaded.cardholderName);
+        setCardNumber(loaded.cardNumber);
+        setExpiryDate(loaded.expiryDate);
+        setCvv(loaded.cvv || "");
+      } catch (error) {
+        console.error(error);
+        toast.error("Unable to load billing from database.");
+      }
+    };
+
+    loadBilling();
+  }, []);
+
+  const saveBilling = async (nextBilling: BillingState) => {
+    const res = await fetch("/api/account/billing", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(nextBilling),
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || "Failed to save billing");
+    }
+  };
 
   const tabs = [
     { id: "profile", name: "Profile Details", icon: User },
@@ -59,16 +123,16 @@ export default function SettingsPage() {
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label htmlFor="firstName" className="text-sm font-medium">First Name</label>
-                    <Input id="firstName" defaultValue="John" />
+                    <Input id="firstName" defaultValue={currentUser?.name?.split(/\s+/)[0] || "Traveler"} />
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="lastName" className="text-sm font-medium">Last Name</label>
-                    <Input id="lastName" defaultValue="Doe" />
+                    <Input id="lastName" defaultValue={currentUser?.name?.split(/\s+/).slice(1).join(" ") || ""} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="email" className="text-sm font-medium">Email Address</label>
-                  <Input id="email" type="email" defaultValue="john.doe@example.com" />
+                  <Input id="email" type="email" defaultValue={currentUser?.email || "traveler@example.com"} />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="bio" className="text-sm font-medium">Bio</label>
@@ -107,7 +171,7 @@ export default function SettingsPage() {
                         <p className="font-medium text-sm text-foreground">{item.title}</p>
                         <p className="text-sm text-muted-foreground">{item.desc}</p>
                       </div>
-                      <button className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${i < 2 ? 'bg-primary-600' : 'bg-muted'}`}>
+                      <button className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${i < 2 ? 'bg-primary-600' : 'bg-muted'}`}>
                         <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${i < 2 ? 'translate-x-5' : 'translate-x-0'}`} />
                       </button>
                     </div>
@@ -167,14 +231,57 @@ export default function SettingsPage() {
                 <div className="rounded-lg border border-border p-4 bg-muted/30">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-foreground">Pro Plan</p>
-                      <p className="text-sm text-muted-foreground">$9.99/month, renews on Oct 15, 2026</p>
+                      <p className="font-semibold text-foreground">{billing.selectedPlan}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {billing.subscriptionActive ? "₹9.99/month, renews on Oct 15, 2026" : "Subscription paused"}
+                      </p>
                     </div>
-                    <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-bold uppercase">Active</span>
+                    <span className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-xs font-bold uppercase">
+                      {billing.subscriptionActive ? "Active" : "Paused"}
+                    </span>
                   </div>
                   <div className="mt-4 pt-4 border-t border-border flex gap-3">
-                    <Button variant="outline" size="sm" onClick={() => toast.success('Opening plan selection...')}>Change Plan</Button>
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => toast.success('Subscription cancelled successfully.')}>Cancel Subscription</Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        const nextBilling = {
+                          ...billing,
+                          selectedPlan: billing.selectedPlan === 'Pro Plan' ? 'Premium Plan' : 'Pro Plan',
+                          subscriptionActive: true,
+                        };
+
+                        try {
+                          await saveBilling(nextBilling);
+                          setBilling(nextBilling);
+                          toast.success('Subscription plan updated successfully.');
+                        } catch (error) {
+                          console.error(error);
+                          toast.error('Failed to update plan.');
+                        }
+                      }}
+                    >
+                      Change Plan
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-600"
+                      onClick={async () => {
+                        const nextBilling = { ...billing, subscriptionActive: false };
+
+                        try {
+                          await saveBilling(nextBilling);
+                          setBilling(nextBilling);
+                          toast('Subscription cancelled successfully.');
+                        } catch (error) {
+                          console.error(error);
+                          toast.error('Failed to cancel subscription.');
+                        }
+                      }}
+                    >
+                      Cancel Subscription
+                    </Button>
                   </div>
                 </div>
 
@@ -183,9 +290,9 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between p-3 border border-border rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="h-8 w-12 bg-card border border-border rounded flex items-center justify-center font-bold text-xs">VISA</div>
-                      <span className="text-sm text-foreground font-medium">•••• •••• •••• 4242</span>
+                      <span className="text-sm text-foreground font-medium">•••• •••• •••• {billing.cardNumber.slice(-4)}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">Expires 12/28</span>
+                    <span className="text-xs text-muted-foreground">Expires {billing.expiryDate}</span>
                   </div>
                   <Button variant="link" className="px-0 mt-2 text-primary-600" onClick={() => setShowPaymentModal(true)}>Add new payment method</Button>
                 </div>
@@ -206,28 +313,43 @@ export default function SettingsPage() {
                 <div className="p-6 space-y-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Cardholder Name</label>
-                    <Input placeholder="John Doe" />
+                    <Input value={cardholderName} onChange={(e) => setCardholderName(e.target.value)} placeholder="John Doe" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Card Number</label>
-                    <Input placeholder="0000 0000 0000 0000" />
+                    <Input value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="0000 0000 0000 0000" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Expiry Date</label>
-                      <Input placeholder="MM/YY" />
+                      <Input type="month" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">CVC</label>
-                      <Input type="password" placeholder="123" />
+                      <label className="text-sm font-medium">CVV</label>
+                      <Input type="password" maxLength={3} value={cvv} onChange={(e) => setCvv(e.target.value)} placeholder="123" />
                     </div>
                   </div>
                 </div>
                 <div className="p-4 border-t border-border bg-muted/30 flex justify-end gap-3">
                   <Button variant="outline" onClick={() => setShowPaymentModal(false)}>Cancel</Button>
-                  <Button onClick={() => {
-                    toast.success("Payment method added successfully!");
-                    setShowPaymentModal(false);
+                  <Button onClick={async () => {
+                    const nextBilling = {
+                      ...billing,
+                      cardholderName,
+                      cardNumber,
+                      expiryDate,
+                      cvv,
+                    };
+
+                    try {
+                      await saveBilling(nextBilling);
+                      setBilling(nextBilling);
+                      toast.success("Payment method added successfully!");
+                      setShowPaymentModal(false);
+                    } catch (error) {
+                      console.error(error);
+                      toast.error("Failed to save payment method.");
+                    }
                   }}>Save Card</Button>
                 </div>
               </div>

@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
       } else {
         toast.error(data.error || "Invalid credentials. Try admin@traveloop.com / admin123");
       }
-    } catch (error) {
+    } catch {
       toast.error("Failed to connect to the server.");
     } finally {
       setIsLoading(false);

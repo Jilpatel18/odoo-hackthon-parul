@@ -27,7 +27,7 @@ export default function AdminDashboardPage() {
           { title: "Total Users", value: "24,592", icon: Users, trend: "+12%" },
           { title: "Active Trips", value: "1,429", icon: Map, trend: "+5%" },
           { title: "Avg. Engagement", value: "84%", icon: TrendingUp, trend: "+2%" },
-          { title: "Revenue (Est)", value: "$12,400", icon: DollarSign, trend: "+18%" },
+          { title: "Revenue (Est)", value: "₹12,400", icon: DollarSign, trend: "+18%" },
         ].map((stat, i) => (
           <Card key={i}>
             <CardContent className="p-6">
@@ -50,7 +50,7 @@ export default function AdminDashboardPage() {
           <CardDescription>Monthly active users and trips created over time.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[400px] w-full mt-4">
+          <div className="h-100 w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                 <defs>

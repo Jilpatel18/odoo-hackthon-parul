@@ -1,57 +1,156 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Filter, ArrowUpDown, Layers, Heart, MessageSquare, Share2, MapPin } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search, Filter, ArrowUpDown, Layers, Heart, MessageSquare, Share2, MapPin, Plus } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/Card";
 import toast from "react-hot-toast";
+import { useDashboardUser } from "@/components/layout/DashboardLayout";
 
-const MOCK_COMMUNITY_POSTS = [
-  {
-    id: 1,
-    user: "Sarah Jenkins",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150&auto=format&fit=crop",
-    title: "10 Days exploring the Swiss Alps on a budget!",
-    description: "Just got back from an amazing trip. We managed to keep costs down by staying in smaller villages and cooking our own meals. Here is my full itinerary and budget breakdown.",
-    image: "https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?q=80&w=600&auto=format&fit=crop",
-    tags: ["Budget", "Nature", "Europe"],
-    likes: 124,
-    comments: 18,
-    timeAgo: "2 hours ago"
-  },
-  {
-    id: 2,
-    user: "Marcus Chen",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=150&auto=format&fit=crop",
-    title: "Hidden gems in Tokyo's culinary scene",
-    description: "Skip the tourist traps! I've compiled a list of the best local izakayas and ramen spots we discovered during our 2-week food tour.",
-    image: "https://images.unsplash.com/photo-1542051812871-7575008240f8?q=80&w=600&auto=format&fit=crop",
-    tags: ["Foodie", "Asia", "City"],
-    likes: 342,
-    comments: 45,
-    timeAgo: "5 hours ago"
-  },
-  {
-    id: 3,
-    user: "Elena Rodriguez",
-    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=150&auto=format&fit=crop",
-    title: "Ultimate Guide to Backpacking South America",
-    description: "Our 3-month itinerary covering Peru, Bolivia, Chile, and Argentina. Includes all transport details and border crossing tips.",
-    image: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=600&auto=format&fit=crop",
-    tags: ["Backpacking", "Adventure", "Long-term"],
-    likes: 89,
-    comments: 12,
-    timeAgo: "1 day ago"
-  }
-];
+type CommunityPost = {
+  id: number;
+  userId: number;
+  user: string;
+  avatar: string;
+  title: string;
+  description: string;
+  image: string;
+  tags: string[];
+  likes: number;
+  comments: number;
+  likedByMe: boolean;
+  isFollowing: boolean;
+  timeAgo: string;
+};
 
 export default function CommunityPage() {
+  const currentUser = useDashboardUser();
   const [searchQuery, setSearchQuery] = useState("");
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [postTitle, setPostTitle] = useState("");
+  const [postDescription, setPostDescription] = useState("");
+  const [postImage, setPostImage] = useState("");
+  const [postTripId, setPostTripId] = useState("1");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadPosts = async () => {
+      try {
+        const res = await fetch("/api/community/posts", { cache: "no-store" });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to fetch posts");
+        }
+
+        setPosts(data.posts);
+      } catch (error) {
+        console.error(error);
+        toast.error("Unable to load community posts from database.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPosts();
+  }, []);
 
   const handleAction = (action: string) => {
     toast.success(`${action} feature coming soon!`);
   };
+
+  const handleLike = async (postId: number) => {
+    try {
+      const res = await fetch(`/api/community/posts/${postId}/like`, { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to toggle like");
+      }
+
+      setPosts((current) => current.map((post) => (
+        post.id === postId ? { ...post, likes: data.likes, likedByMe: data.liked } : post
+      )));
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update like.");
+    }
+  };
+
+  const handleFollow = async (post: CommunityPost) => {
+    try {
+      const res = await fetch("/api/community/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ followeeId: post.userId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to toggle follow");
+      }
+
+      setPosts((current) => current.map((item) => (
+        item.userId === post.userId ? { ...item, isFollowing: data.following } : item
+      )));
+      toast.success(data.following ? "Now following user." : "Unfollowed user.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update follow status.");
+    }
+  };
+
+  const handleComment = () => {
+    toast.success("Comment composer opened.");
+  };
+
+  const handleShare = () => {
+    toast.success("Share link copied.");
+  };
+
+  const handleCreatePost = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    try {
+      const res = await fetch("/api/community/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: postTitle,
+          description: postDescription,
+          image: postImage,
+          tags: ["Community", `Trip ${postTripId}`],
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to create post");
+      }
+
+      setPosts((current) => [data.post, ...current]);
+      setPostTitle("");
+      setPostDescription("");
+      setPostImage("");
+      setIsCreateOpen(false);
+      toast.success("Trip posted to the community!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create post.");
+    }
+  };
+
+  const visiblePosts = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return posts.filter((post) =>
+      post.title.toLowerCase().includes(query) ||
+      post.description.toLowerCase().includes(query) ||
+      post.user.toLowerCase().includes(query)
+    );
+  }, [posts, searchQuery]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-8">
@@ -60,6 +159,9 @@ export default function CommunityPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Community Hub</h1>
           <p className="mt-1 text-muted-foreground">Discover and share experiences with fellow travelers.</p>
         </div>
+        <Button onClick={() => setIsCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Create Post
+        </Button>
       </div>
 
       {/* Wireframe-accurate search and filter bar */}
@@ -87,7 +189,9 @@ export default function CommunityPage() {
       </div>
 
       <div className="space-y-6">
-        {MOCK_COMMUNITY_POSTS.map((post) => (
+        {isLoading ? (
+          <Card className="p-6 text-muted-foreground">Loading community posts...</Card>
+        ) : visiblePosts.map((post) => (
           <Card key={post.id} className="overflow-hidden hover:shadow-medium transition-shadow border-border">
             <CardHeader className="p-4 sm:p-6 pb-0">
               <div className="flex items-center justify-between">
@@ -98,18 +202,28 @@ export default function CommunityPage() {
                     <p className="text-xs text-muted-foreground">{post.timeAgo}</p>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="h-8 text-primary-600 font-medium">Follow</Button>
+                {currentUser?.id !== post.userId && (
+                  <Button variant="ghost" size="sm" className="h-8 text-primary-600 font-medium" onClick={() => handleFollow(post)}>
+                    {post.isFollowing ? "Following" : "Follow"}
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6 pt-4">
-              <h2 className="text-xl font-bold mb-2">{post.title}</h2>
+              <Link href={`/shared/trip/${post.id}`} className="block group">
+                <h2 className="text-xl font-bold mb-2 group-hover:text-primary-600 transition-colors">{post.title}</h2>
+              </Link>
               <p className="text-muted-foreground text-sm mb-4 line-clamp-2">{post.description}</p>
               
-              <div className="h-48 sm:h-64 w-full rounded-xl overflow-hidden mb-4">
-                <img src={post.image} alt="Trip preview" className="w-full h-full object-cover transition-transform hover:scale-105 duration-500" />
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
+              <Link href={`/shared/trip/${post.id}`} className="block h-48 sm:h-64 w-full rounded-xl overflow-hidden mb-4 group">
+                <img src={post.image} alt="Trip preview" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
+              </Link>
+
+              <Link href={`/shared/trip/${post.id}`} className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-500 transition-colors mb-4">
+                View trip details
+              </Link>
+
+              <div className="flex flex-wrap gap-2 mb-1">
                 {post.tags.map(tag => (
                   <span key={tag} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
                     <MapPin className="mr-1 h-3 w-3" /> {tag}
@@ -119,22 +233,66 @@ export default function CommunityPage() {
             </CardContent>
             <CardFooter className="p-4 sm:px-6 border-t border-border bg-muted/20 flex justify-between items-center">
               <div className="flex items-center space-x-4">
-                <button onClick={() => handleAction("Like")} className="flex items-center space-x-1.5 text-sm text-muted-foreground hover:text-red-500 transition-colors">
+                <button onClick={() => handleLike(post.id)} className={`flex items-center space-x-1.5 text-sm transition-colors ${post.likedByMe ? "text-red-500" : "text-muted-foreground hover:text-red-500"}`}>
                   <Heart className="h-4 w-4" />
                   <span>{post.likes}</span>
                 </button>
-                <button onClick={() => handleAction("Comment")} className="flex items-center space-x-1.5 text-sm text-muted-foreground hover:text-blue-500 transition-colors">
+                <button onClick={handleComment} className="flex items-center space-x-1.5 text-sm text-muted-foreground hover:text-blue-500 transition-colors">
                   <MessageSquare className="h-4 w-4" />
                   <span>{post.comments}</span>
                 </button>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => handleAction("Share")}>
+              <Button variant="ghost" size="sm" onClick={handleShare}>
                 <Share2 className="h-4 w-4 mr-2" /> Share
               </Button>
             </CardFooter>
           </Card>
         ))}
       </div>
+
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-elevated overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h3 className="text-lg font-semibold text-foreground">Create Community Post</h3>
+              <button onClick={() => setIsCreateOpen(false)} className="text-muted-foreground hover:text-foreground">×</button>
+            </div>
+            <form onSubmit={handleCreatePost} className="space-y-4 p-5">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Title</label>
+                <Input value={postTitle} onChange={(e) => setPostTitle(e.target.value)} placeholder="Share your trip story" required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Description</label>
+                <textarea
+                  value={postDescription}
+                  onChange={(e) => setPostDescription(e.target.value)}
+                  rows={4}
+                  className="flex w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                  placeholder="Tell the community what made your trip special"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Image URL</label>
+                <Input value={postImage} onChange={(e) => setPostImage(e.target.value)} placeholder="https://..." />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Trip</label>
+                <select value={postTripId} onChange={(e) => setPostTripId(e.target.value)} className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                  <option value="1">Summer in Kyoto</option>
+                  <option value="2">Swiss Alps Adventure</option>
+                  <option value="3">Rome Weekend</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                <Button type="submit">Post Trip</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

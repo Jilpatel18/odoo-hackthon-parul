@@ -6,6 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_dev';
 export interface TokenPayload {
   userId: number;
   email: string;
+  name?: string;
 }
 
 export const hashPassword = async (password: string) => {
@@ -24,7 +25,7 @@ export const generateToken = (payload: TokenPayload) => {
 export const verifyToken = (token: string) => {
   try {
     return jwt.verify(token, JWT_SECRET) as TokenPayload;
-  } catch (error) {
+  } catch {
     return null;
   }
 };

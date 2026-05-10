@@ -22,10 +22,11 @@ export default function SignupPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/auth/register", {
+      const normalizedEmail = email.trim().toLowerCase();
+      const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name: name.trim(), email: normalizedEmail, password }),
       });
 
       if (res.ok) {
@@ -35,7 +36,7 @@ export default function SignupPage() {
         const data = await res.json();
         setError(data.error || "Registration failed");
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);

@@ -5,6 +5,7 @@ import { Plus, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/Card";
 import Link from "next/link";
+import { useDashboardUser } from "@/components/layout/DashboardLayout";
 
 const stats = [
   { name: "Total Trips", value: "12" },
@@ -30,6 +31,9 @@ const upcomingTrips = [
 ];
 
 export default function DashboardPage() {
+  const currentUser = useDashboardUser();
+  const greetingName = currentUser?.name?.split(/\s+/)[0] || "Traveler";
+
   return (
     <div className="space-y-8 pb-8">
       {/* Hero Section */}
@@ -38,10 +42,10 @@ export default function DashboardPage() {
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Hello, John!
+              Hello, {greetingName}!
             </h1>
             <p className="mt-2 text-lg text-primary-100 max-w-xl">
-              Ready for your next adventure? Let's start planning something extraordinary today.
+              Ready for your next adventure? Let&apos;s start planning something extraordinary today.
             </p>
           </div>
           <Link href="/dashboard/trips/new">

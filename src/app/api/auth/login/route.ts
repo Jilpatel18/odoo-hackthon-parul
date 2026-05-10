@@ -8,14 +8,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_key';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const email = String(body.email || '').trim().toLowerCase();
+    const password = String(body.password || '');
 
     if (!email || !password) {
       return NextResponse.json({ success: false, error: 'Missing credentials' }, { status: 400 });
     }
 
     // Fetch user
-    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await query('SELECT * FROM users WHERE LOWER(email) = $1', [email]);
     if (result.rows.length === 0) {
       // Return 401 for security (don't reveal if user exists)
       return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });
@@ -24,6 +25,10 @@ export async function POST(request: Request) {
     const user = result.rows[0];
 
     // Verify password
+    if (!user.password_hash) {
+      return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
     if (!isPasswordValid) {
       return NextResponse.json({ success: false, error: 'Invalid email or password' }, { status: 401 });

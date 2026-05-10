@@ -12,8 +12,42 @@ async function getUser() {
   if (!token) return null;
   try {
     return jwt.verify(token, JWT_SECRET) as { userId: number; email: string };
-  } catch (e) {
+  } catch {
     return null;
+  }
+}
+
+type NoteRow = {
+  id: number;
+  trip_id: number | null;
+  content: string;
+  created_at: string;
+};
+
+function parseNoteRow(row: NoteRow) {
+  const fallbackDate = new Date(row.created_at).toISOString().slice(0, 10);
+
+  try {
+    const parsedContent = JSON.parse(row.content);
+    return {
+      id: row.id,
+      trip_id: row.trip_id,
+      title: parsedContent.title || 'Untitled Note',
+      content: parsedContent.content || '',
+      type: parsedContent.type || 'general',
+      date: parsedContent.date || fallbackDate,
+      created_at: row.created_at,
+    };
+  } catch {
+    return {
+      id: row.id,
+      trip_id: row.trip_id,
+      title: 'Untitled Note',
+      content: row.content,
+      type: 'general',
+      date: fallbackDate,
+      created_at: row.created_at,
+    };
   }
 }
 
@@ -26,7 +60,7 @@ export async function GET(request: Request) {
     const tripId = searchParams.get('tripId');
 
     let dbQuery = 'SELECT * FROM notes';
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (tripId) {
       dbQuery += ' WHERE trip_id = $1';
@@ -37,28 +71,7 @@ export async function GET(request: Request) {
     const result = await query(dbQuery, params);
     
     // Parse the JSON string stored in content
-    const notes = result.rows.map(row => {
-      try {
-        const parsedContent = JSON.parse(row.content);
-        return {
-          id: row.id,
-          trip_id: row.trip_id,
-          ...parsedContent,
-          created_at: row.created_at
-        };
-      } catch (e) {
-        // Fallback for non-JSON content
-        return {
-          id: row.id,
-          trip_id: row.trip_id,
-          content: row.content,
-          title: 'Untitled Note',
-          type: 'general',
-          date: new Date(row.created_at).toLocaleDateString(),
-          created_at: row.created_at
-        };
-      }
-    });
+    const notes = result.rows.map(parseNoteRow);
 
     return NextResponse.json({ success: true, notes });
   } catch (error) {
@@ -75,7 +88,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { trip_id, title, content, type, date } = body;
 
-    // We store the UI fields inside a JSON string in the 'content' column to bypass schema limitations
+    if (!title || !content) {
+      return NextResponse.json({ success: false, error: 'Title and content are required' }, { status: 400 });
+    }
+
     const jsonContent = JSON.stringify({ title, content, type, date });
 
     const result = await query(
@@ -83,7 +99,18 @@ export async function POST(request: Request) {
       [trip_id || null, jsonContent]
     );
 
-    return NextResponse.json({ success: true, note: { id: result.rows[0].id, ...body } }, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      note: {
+        id: result.rows[0].id,
+        trip_id: trip_id || null,
+        title,
+        content,
+        type,
+        date,
+        created_at: result.rows[0].created_at,
+      },
+    }, { status: 201 });
   } catch (error) {
     console.error('Create note error:', error);
     return NextResponse.json({ success: false, error: 'Failed to create note' }, { status: 500 });
@@ -99,6 +126,7 @@ export async function PUT(request: Request) {
     const { id, title, content, type, date } = body;
 
     if (!id) return NextResponse.json({ error: 'Note ID is required' }, { status: 400 });
+    if (!title || !content) return NextResponse.json({ success: false, error: 'Title and content are required' }, { status: 400 });
 
     const jsonContent = JSON.stringify({ title, content, type, date });
 

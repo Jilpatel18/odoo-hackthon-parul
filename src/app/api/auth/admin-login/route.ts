@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const email = String(body.email || '').trim().toLowerCase();
+    const password = String(body.password || '');
 
     // Hardcoded demo admin
     if (email === 'admin@traveloop.com' && password === 'admin123') {
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
       { success: false, error: 'Invalid admin credentials' },
       { status: 401 }
     );
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

@@ -69,7 +69,7 @@ export default function PackingPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Packing List</h1>
-          <p className="mt-1 text-muted-foreground">Don't forget the essentials for your next trip.</p>
+          <p className="mt-1 text-muted-foreground">Don&apos;t forget the essentials for your next trip.</p>
         </div>
       </div>
 
@@ -79,7 +79,7 @@ export default function PackingPage() {
             <span className="text-sm font-medium text-muted-foreground">Packing Progress</span>
             <span className="text-sm font-bold text-primary-600">{progress}%</span>
           </div>
-          <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
             <div 
               className="h-full bg-primary-500 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progress}%` }}

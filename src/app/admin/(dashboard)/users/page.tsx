@@ -1,26 +1,100 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { Users, Search, MoreHorizontal } from "lucide-react";
+import { Search, MoreHorizontal } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import toast from "react-hot-toast";
 
-const users = [
-  { id: 1, name: "John Doe", email: "john@example.com", status: "Active", trips: 12, joined: "2026-01-15" },
-  { id: 2, name: "Jane Smith", email: "jane@example.com", status: "Active", trips: 5, joined: "2026-03-22" },
-  { id: 3, name: "Robert Johnson", email: "robert@example.com", status: "Inactive", trips: 0, joined: "2026-05-01" },
-  { id: 4, name: "Emily Davis", email: "emily@example.com", status: "Active", trips: 3, joined: "2026-02-10" },
-];
+type UserItem = {
+  id: number;
+  name: string;
+  email: string;
+  status: "Active" | "Inactive";
+  trips: number;
+  joined: string;
+};
 
 export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [usersState, setUsersState] = useState<UserItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const res = await fetch("/api/admin/users", { cache: "no-store" });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to fetch users");
+        }
+
+        setUsersState(data.users);
+      } catch (error) {
+        console.error(error);
+        toast.error("Unable to load users from database.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, []);
+
+  const filteredUsers = useMemo(
+    () => usersState.filter((user) =>
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [usersState, searchQuery]
   );
+
+  const toggleUserStatus = async (user: UserItem) => {
+    const nextStatus = user.status === "Active" ? "Inactive" : "Active";
+
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to update user");
+      }
+
+      setUsersState((current) => current.map((item) => (
+        item.id === user.id ? { ...item, status: nextStatus } : item
+      )));
+      toast.success("User status updated.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update user status.");
+    }
+  };
+
+  const deleteUser = async (id: number) => {
+    if (!confirm("Delete this user?")) return;
+
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to delete user");
+      }
+
+      setUsersState((current) => current.filter((user) => user.id !== id));
+      toast.success("User deleted.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete user.");
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -57,7 +131,11 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-muted-foreground">Loading users...</td>
+                  </tr>
+                ) : filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="text-center py-8 text-muted-foreground">No users found.</td>
                   </tr>
@@ -82,8 +160,11 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4 text-muted-foreground">{user.trips}</td>
                     <td className="px-6 py-4 text-muted-foreground">{user.joined}</td>
                     <td className="px-6 py-4 text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 mr-2" onClick={() => toggleUserStatus(user)}>
                         <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600" onClick={() => deleteUser(user.id)}>
+                        Delete
                       </Button>
                     </td>
                   </tr>

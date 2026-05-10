@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import toast from "react-hot-toast";
 
+const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
+
 const MOCK_INVOICE = {
   id: "INV-2025-001",
   date: "May 20, 2025",
@@ -53,7 +55,7 @@ export default function InvoicePage() {
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row justify-between gap-6">
                 <div className="flex items-start space-x-4">
-                  <div className="h-16 w-16 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="h-16 w-16 bg-primary-100 rounded-lg flex items-center justify-center shrink-0">
                     <FileText className="h-8 w-8 text-primary-600" />
                   </div>
                   <div>
@@ -108,15 +110,15 @@ export default function InvoicePage() {
               <div className="w-full space-y-3 text-sm">
                 <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Total Budget:</span>
-                  <span className="font-semibold">${MOCK_INVOICE.budget.total}</span>
+                  <span className="font-semibold">{formatCurrency(MOCK_INVOICE.budget.total)}</span>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-muted-foreground">Total Spent:</span>
-                  <span className="font-semibold text-primary-600">${MOCK_INVOICE.budget.spent}</span>
+                  <span className="font-semibold text-primary-600">{formatCurrency(MOCK_INVOICE.budget.spent)}</span>
                 </div>
                 <div className="flex justify-between pb-2">
                   <span className="text-muted-foreground">Remaining:</span>
-                  <span className="font-semibold text-green-600">${MOCK_INVOICE.budget.remaining}</span>
+                  <span className="font-semibold text-green-600">{formatCurrency(MOCK_INVOICE.budget.remaining)}</span>
                 </div>
               </div>
 
@@ -149,8 +151,8 @@ export default function InvoicePage() {
                   <td className="px-6 py-4 uppercase tracking-wider text-xs font-semibold">{item.category}</td>
                   <td className="px-6 py-4 text-foreground">{item.description}</td>
                   <td className="px-6 py-4 text-right text-muted-foreground">{item.qty}</td>
-                  <td className="px-6 py-4 text-right text-muted-foreground">${item.unitCost}</td>
-                  <td className="px-6 py-4 text-right font-medium">${item.amount}</td>
+                  <td className="px-6 py-4 text-right text-muted-foreground">{formatCurrency(item.unitCost)}</td>
+                  <td className="px-6 py-4 text-right font-medium">{formatCurrency(item.amount)}</td>
                 </tr>
               ))}
             </tbody>
@@ -162,19 +164,19 @@ export default function InvoicePage() {
           <div className="w-full max-w-sm space-y-3 text-sm">
             <div className="flex justify-between text-muted-foreground">
               <span>Subtotal</span>
-              <span>${MOCK_INVOICE.subtotal}</span>
+              <span>{formatCurrency(MOCK_INVOICE.subtotal)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Tax (5%)</span>
-              <span>${MOCK_INVOICE.tax}</span>
+              <span>{formatCurrency(MOCK_INVOICE.tax)}</span>
             </div>
             <div className="flex justify-between text-green-600">
               <span>Discount</span>
-              <span>-${MOCK_INVOICE.discount}</span>
+              <span>-{formatCurrency(MOCK_INVOICE.discount)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold text-foreground pt-3 border-t border-border">
               <span>Grand Total</span>
-              <span>${MOCK_INVOICE.grandTotal}</span>
+              <span>{formatCurrency(MOCK_INVOICE.grandTotal)}</span>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { createContext, useContext, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -19,6 +19,18 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
+export type DashboardUser = {
+  id: number;
+  name: string;
+  email: string;
+};
+
+const DashboardUserContext = createContext<DashboardUser | null>(null);
+
+export function useDashboardUser() {
+  return useContext(DashboardUserContext);
+}
+
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "My Trips", href: "/dashboard/trips", icon: Map },
@@ -31,10 +43,11 @@ const navigation = [
   { name: "Journal", href: "/dashboard/notes", icon: CheckSquare },
 ];
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+export function DashboardLayout({ children, currentUser }: { children: React.ReactNode; currentUser: DashboardUser | null }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const accountLabel = currentUser?.name || currentUser?.email || "Account";
 
   const handleLogout = async () => {
     try {
@@ -47,6 +60,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
+    <DashboardUserContext.Provider value={currentUser}>
     <div className="min-h-screen bg-background">
       {/* Mobile sidebar */}
       <div className={`fixed inset-0 z-50 lg:hidden ${sidebarOpen ? "block" : "hidden"}`}>
@@ -146,7 +160,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <ThemeToggle />
               {/* Profile dropdown or notifications could go here */}
               <Button size="sm" variant="outline" className="rounded-full">
-                John Doe
+                {accountLabel}
               </Button>
             </div>
           </div>
@@ -163,6 +177,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </motion.div>
         </main>
       </div>
-    </div>
+      </div>
+    </DashboardUserContext.Provider>
   );
 }

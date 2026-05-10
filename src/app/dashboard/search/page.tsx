@@ -9,8 +9,8 @@ import { Card, CardContent } from "@/components/ui/Card";
 const searchResults = [
   { id: 1, title: "Fushimi Inari Taisha", location: "Kyoto, Japan", duration: "2-3 hours", cost: "Free", type: "Culture" },
   { id: 2, title: "Arashiyama Bamboo Grove", location: "Kyoto, Japan", duration: "1-2 hours", cost: "Free", type: "Nature" },
-  { id: 3, title: "Universal Studios Japan", location: "Osaka, Japan", duration: "Full Day", cost: "$60.00", type: "Entertainment" },
-  { id: 4, title: "Osaka Castle", location: "Osaka, Japan", duration: "2 hours", cost: "$5.00", type: "History" },
+  { id: 3, title: "Universal Studios Japan", location: "Osaka, Japan", duration: "Full Day", cost: "₹60.00", type: "Entertainment" },
+  { id: 4, title: "Osaka Castle", location: "Osaka, Japan", duration: "2 hours", cost: "₹5.00", type: "History" },
 ];
 
 export default function ActivitySearchPage() {

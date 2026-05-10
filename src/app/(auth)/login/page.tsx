@@ -21,10 +21,11 @@ export default function LoginPage() {
     setError("");
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
 
       if (res.ok) {
@@ -34,7 +35,7 @@ export default function LoginPage() {
         const data = await res.json();
         setError(data.error || "Login failed");
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred");
     } finally {
       setIsLoading(false);
@@ -53,7 +54,7 @@ export default function LoginPage() {
           Welcome back to Traveloop
         </h2>
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
+          Don&apos;t have an account?{" "}
           <Link
             href="/signup"
             className="font-medium text-primary-600 hover:text-primary-500 transition-colors"

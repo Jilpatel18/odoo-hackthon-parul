@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { MapPin, Search, MoreHorizontal, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -8,38 +8,117 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import toast from 'react-hot-toast';
 
-const initialDestinations = [
-  { id: 1, name: "Kyoto", country: "Japan", trips: 145, rating: "4.9" },
-  { id: 2, name: "Zermatt", country: "Switzerland", trips: 89, rating: "4.8" },
-  { id: 3, name: "Rome", country: "Italy", trips: 230, rating: "4.7" },
-  { id: 4, name: "Reykjavik", country: "Iceland", trips: 56, rating: "4.9" },
-];
+type Destination = {
+  id: number;
+  name: string;
+  country: string;
+  trips: number;
+  rating: string;
+};
 
 export default function AdminDestinationsPage() {
-  const [destinations, setDestinations] = useState(initialDestinations);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredDestinations = destinations.filter(dest => 
-    dest.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    dest.country.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    const loadDestinations = async () => {
+      try {
+        const res = await fetch("/api/admin/destinations", { cache: "no-store" });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to fetch destinations");
+        }
+
+        setDestinations(data.destinations);
+      } catch (error) {
+        console.error(error);
+        toast.error("Unable to load destinations from database.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDestinations();
+  }, []);
+
+  const filteredDestinations = useMemo(
+    () => destinations.filter((dest) =>
+      dest.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      dest.country.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [destinations, searchQuery]
   );
 
-  const handleAdd = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
     const country = formData.get("country") as string;
+    const trips = Number(formData.get("trips") || 0);
+    const rating = String(formData.get("rating") || "0.0");
 
-    setDestinations([...destinations, {
-      id: Date.now(),
-      name,
-      country,
-      trips: 0,
-      rating: "0.0"
-    }]);
-    setIsAddModalOpen(false);
-    toast.success("Destination added successfully!");
+    try {
+      if (editingDestination) {
+        const res = await fetch(`/api/admin/destinations/${editingDestination.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, country, trips, rating }),
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to update destination");
+        }
+
+        setDestinations((current) => current.map((dest) => (
+          dest.id === editingDestination.id ? data.destination : dest
+        )));
+        toast.success("Destination updated successfully!");
+      } else {
+        const res = await fetch("/api/admin/destinations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, country, trips, rating }),
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to add destination");
+        }
+
+        setDestinations((current) => [data.destination, ...current]);
+        toast.success("Destination added successfully!");
+      }
+
+      setIsAddModalOpen(false);
+      setEditingDestination(null);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save destination.");
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Delete this destination?")) return;
+
+    try {
+      const res = await fetch(`/api/admin/destinations/${id}`, { method: "DELETE" });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to delete destination");
+      }
+
+      setDestinations((current) => current.filter((dest) => dest.id !== id));
+      toast.success("Destination deleted successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to delete destination.");
+    }
   };
 
   return (
@@ -49,7 +128,7 @@ export default function AdminDestinationsPage() {
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Destinations</h1>
           <p className="mt-1 text-muted-foreground">Manage popular destinations.</p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)}>
+        <Button onClick={() => { setEditingDestination(null); setIsAddModalOpen(true); }}>
           <Plus className="mr-2 h-4 w-4" /> Add Destination
         </Button>
       </div>
@@ -80,7 +159,11 @@ export default function AdminDestinationsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDestinations.length === 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-muted-foreground">Loading destinations...</td>
+                  </tr>
+                ) : filteredDestinations.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="text-center py-8 text-muted-foreground">No destinations found.</td>
                   </tr>
@@ -96,8 +179,11 @@ export default function AdminDestinationsPage() {
                     <td className="px-6 py-4 text-muted-foreground">{dest.trips}</td>
                     <td className="px-6 py-4 text-muted-foreground">⭐ {dest.rating}</td>
                     <td className="px-6 py-4 text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toast.success('Opening options menu...')}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 mr-2" onClick={() => { setEditingDestination(dest); setIsAddModalOpen(true); }}>
                         <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600" onClick={() => handleDelete(dest.id)}>
+                        Delete
                       </Button>
                     </td>
                   </tr>
@@ -108,23 +194,33 @@ export default function AdminDestinationsPage() {
         </CardContent>
       </Card>
 
-      {/* Add Modal */}
+      {/* Add/Edit Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border border-border p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold mb-4">Add Destination</h2>
+            <h2 className="text-xl font-bold mb-4">{editingDestination ? "Edit Destination" : "Add Destination"}</h2>
             <form onSubmit={handleAdd} className="space-y-4">
               <div>
                 <label className="text-sm font-medium mb-1 block">Destination Name</label>
-                <Input name="name" required placeholder="e.g. Kyoto" />
+                <Input name="name" required defaultValue={editingDestination?.name || ""} placeholder="e.g. Kyoto" />
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Country</label>
-                <Input name="country" required placeholder="e.g. Japan" />
+                <Input name="country" required defaultValue={editingDestination?.country || ""} placeholder="e.g. Japan" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Trips Planned</label>
+                  <Input name="trips" type="number" min="0" defaultValue={editingDestination?.trips ?? 0} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Rating</label>
+                  <Input name="rating" defaultValue={editingDestination?.rating || "0.0"} placeholder="4.9" />
+                </div>
               </div>
               <div className="flex justify-end space-x-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
-                <Button type="submit">Add Destination</Button>
+                <Button type="button" variant="outline" onClick={() => { setIsAddModalOpen(false); setEditingDestination(null); }}>Cancel</Button>
+                <Button type="submit">{editingDestination ? "Save Changes" : "Add Destination"}</Button>
               </div>
             </form>
           </div>

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { Plus, Download, Receipt, ArrowUpRight, ArrowDownRight, Wallet, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Plus, Download, Receipt, ArrowUpRight, ArrowDownRight, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import toast from 'react-hot-toast';
+
+const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
 
 const pieData = [
   { name: 'Flights', value: 1200, color: '#3b82f6' },
@@ -78,7 +79,7 @@ export default function BudgetPage() {
       document.body.removeChild(link);
       
       toast.success('Budget report downloaded successfully!');
-    } catch (error) {
+    } catch {
       toast.error('Failed to export report.');
     }
   };
@@ -111,7 +112,7 @@ export default function BudgetPage() {
               <WalletIcon className="h-4 w-4 text-primary-500" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-foreground">$5,000</p>
+              <p className="text-3xl font-bold text-foreground">{formatCurrency(5000)}</p>
             </div>
           </CardContent>
         </Card>
@@ -123,7 +124,7 @@ export default function BudgetPage() {
               <ArrowUpRight className="h-4 w-4 text-red-500" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-foreground">$2,750</p>
+              <p className="text-3xl font-bold text-foreground">{formatCurrency(2750)}</p>
               <span className="text-sm font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded-full">55%</span>
             </div>
           </CardContent>
@@ -136,7 +137,7 @@ export default function BudgetPage() {
               <ArrowDownRight className="h-4 w-4 text-emerald-500" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-foreground">$2,250</p>
+              <p className="text-3xl font-bold text-foreground">{formatCurrency(2250)}</p>
             </div>
           </CardContent>
         </Card>
@@ -156,7 +157,7 @@ export default function BudgetPage() {
                   <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#737373' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#737373' }} tickFormatter={(value) => `$${value}`} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#737373' }} tickFormatter={(value) => `₹${value}`} />
                     <Tooltip cursor={{ fill: '#f5f5f5' }} contentStyle={{ borderRadius: '8px', border: '1px solid #e5e5e5', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                     <Bar dataKey="amount" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={40} />
                   </BarChart>
@@ -201,7 +202,7 @@ export default function BudgetPage() {
                       <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: item.color }}></div>
                       <span className="text-muted-foreground">{item.name}</span>
                     </div>
-                    <span className="font-medium">${item.value}</span>
+                    <span className="font-medium">{formatCurrency(item.value)}</span>
                   </div>
                 ))}
               </div>
@@ -229,14 +230,14 @@ export default function BudgetPage() {
                   </div>
                 </div>
                 <div className="text-sm font-semibold text-foreground">
-                  ${expense.amount.toFixed(2)}
+                  {formatCurrency(expense.amount)}
                 </div>
               </div>
             ))}
           </div>
           <Button 
             variant="outline" 
-            className="w-full mt-6 text-primary-600 border-border hover:bg-primary-50"
+            className="w-full mt-4 h-9 text-sm text-primary-600 border-border hover:bg-primary-50"
             onClick={() => setShowAllExpenses(!showAllExpenses)}
           >
             {showAllExpenses ? "Show Less" : "View All Expenses"}
@@ -267,7 +268,7 @@ export default function BudgetPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Amount ($)</label>
+                    <label className="text-sm font-medium text-foreground">Amount (₹)</label>
                     <Input 
                       type="number" 
                       placeholder="0.00" 

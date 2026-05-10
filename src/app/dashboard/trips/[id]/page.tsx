@@ -167,7 +167,7 @@ export default function TripItineraryPage() {
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-muted-foreground">Est. Budget</span>
-                    <span className="font-medium">$2,400.00</span>
+                    <span className="font-medium">₹2,400.00</span>
                   </div>
                 </div>
               </CardContent>

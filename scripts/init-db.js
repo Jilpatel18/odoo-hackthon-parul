@@ -2,6 +2,34 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 
+// Load .env.local for local script execution parity with Next.js runtime.
+try {
+  require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
+} catch {
+  // Ignore if dotenv is unavailable; process.env may already be populated.
+}
+
+if (!process.env.DATABASE_URL) {
+  try {
+    const envPath = path.join(__dirname, '..', '.env.local');
+    if (fs.existsSync(envPath)) {
+      const envLines = fs.readFileSync(envPath, 'utf-8').split(/\r?\n/);
+      for (const line of envLines) {
+        if (!line || line.trim().startsWith('#')) continue;
+        const eqIndex = line.indexOf('=');
+        if (eqIndex <= 0) continue;
+        const key = line.slice(0, eqIndex).trim();
+        const value = line.slice(eqIndex + 1).trim().replace(/^['\"]|['\"]$/g, '');
+        if (!(key in process.env)) {
+          process.env[key] = value;
+        }
+      }
+    }
+  } catch {
+    // Ignore parse errors and allow existing validation to fail with a clear message.
+  }
+}
+
 async function initDb() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {

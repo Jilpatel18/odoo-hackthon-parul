@@ -1,30 +1,138 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { User, MapPin, Map, Award, Camera, Settings as SettingsIcon, X, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import Link from "next/link";
 import toast from 'react-hot-toast';
+import { useDashboardUser } from "@/components/layout/DashboardLayout";
+
+type ProfileData = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  location: string;
+  bio: string;
+  coverUrl: string;
+  avatarUrl: string;
+};
+
+const buildDefaultProfile = (displayName: string | undefined, email: string | undefined): ProfileData => {
+  const nameParts = (displayName || "Traveler").trim().split(/\s+/);
+
+  return {
+    firstName: nameParts[0] || "Traveler",
+    lastName: nameParts.slice(1).join(" ") || "",
+    email: email || "traveler@example.com",
+    location: "San Francisco, CA",
+    bio: "Passionate traveler, food lover, and photography enthusiast.",
+    coverUrl: "https://images.unsplash.com/photo-1506744626753-1fa44df14c28?q=80&w=2000&auto=format&fit=crop",
+    avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop",
+  };
+};
 
 export default function ProfilePage() {
+  const currentUser = useDashboardUser();
+  const initialProfile = buildDefaultProfile(currentUser?.name, currentUser?.email);
   const [showCoverModal, setShowCoverModal] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-  
-  const [coverUrl, setCoverUrl] = useState("https://images.unsplash.com/photo-1506744626753-1fa44df14c28?q=80&w=2000&auto=format&fit=crop");
-  const [avatarUrl, setAvatarUrl] = useState("https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop");
+  const [firstName, setFirstName] = useState(initialProfile.firstName);
+  const [lastName, setLastName] = useState(initialProfile.lastName);
+  const [email, setEmail] = useState(initialProfile.email);
+  const [location, setLocation] = useState(initialProfile.location);
+  const [bio, setBio] = useState(initialProfile.bio);
+  const [coverUrl, setCoverUrl] = useState(initialProfile.coverUrl);
+  const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatarUrl);
   const [tempUrl, setTempUrl] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSaveCover = (e: React.FormEvent) => {
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const res = await fetch("/api/account/profile", { cache: "no-store" });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to load profile");
+        }
+
+        const profile = data.profile as ProfileData;
+        setFirstName(profile.firstName);
+        setLastName(profile.lastName);
+        setEmail(profile.email);
+        setLocation(profile.location);
+        setBio(profile.bio);
+        setCoverUrl(profile.coverUrl);
+        setAvatarUrl(profile.avatarUrl);
+      } catch (error) {
+        console.error(error);
+        toast.error("Unable to load profile from database.");
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  const persistProfile = async (nextValues?: Partial<ProfileData>) => {
+    const payload: ProfileData = {
+      firstName,
+      lastName,
+      email,
+      location,
+      bio,
+      coverUrl,
+      avatarUrl,
+      ...nextValues,
+    };
+
+    const res = await fetch("/api/account/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || "Failed to save profile");
+    }
+  };
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(tempUrl) setCoverUrl(tempUrl);
+
+    try {
+      setIsSaving(true);
+      await persistProfile();
+      toast.success("Personal information updated successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save profile updates.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveCover = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!tempUrl) return;
+
+    try {
+      setCoverUrl(tempUrl);
+      await persistProfile({ coverUrl: tempUrl });
+      toast.success("Cover image updated successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update cover image.");
+    }
+
     setShowCoverModal(false);
     setTempUrl("");
     setIsDragging(false);
-    toast.success("Cover image updated successfully!");
   };
 
   const handleFileDrop = (e: React.DragEvent) => {
@@ -45,12 +153,22 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSaveAvatar = (e: React.FormEvent) => {
+  const handleSaveAvatar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(tempUrl) setAvatarUrl(tempUrl);
+
+    if (!tempUrl) return;
+
+    try {
+      setAvatarUrl(tempUrl);
+      await persistProfile({ avatarUrl: tempUrl });
+      toast.success("Profile picture updated successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update profile picture.");
+    }
+
     setShowAvatarModal(false);
     setTempUrl("");
-    toast.success("Profile picture updated successfully!");
   };
 
   return (
@@ -79,7 +197,7 @@ export default function ProfilePage() {
           <div className="relative h-32 w-32 rounded-full border-4 border-background overflow-hidden bg-muted group cursor-pointer">
             <img 
               src={avatarUrl} 
-              alt="John Doe" 
+              alt={`${firstName} ${lastName}`.trim() || "Traveler"}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
             />
             <button 
@@ -93,9 +211,9 @@ export default function ProfilePage() {
             </button>
           </div>
           <div className="pb-4">
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">John Doe</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">{firstName} {lastName}</h1>
             <p className="text-muted-foreground flex items-center mt-1 text-sm font-medium">
-              <MapPin className="mr-1 h-4 w-4" /> San Francisco, CA
+              <MapPin className="mr-1 h-4 w-4" /> {location}
             </p>
           </div>
         </div>
@@ -114,7 +232,7 @@ export default function ProfilePage() {
               <CardContent className="p-6">
                 <h3 className="font-semibold text-lg mb-4">About Me</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Passionate traveler, food lover, and photography enthusiast. Always looking for the next hidden gem and an excuse to pack my bags.
+                  {bio} Always looking for the next hidden gem and an excuse to pack my bags.
                 </p>
                 <div className="mt-6 space-y-3">
                   <div className="flex items-center text-sm">
@@ -126,6 +244,27 @@ export default function ProfilePage() {
                     <span>14 Followers • 28 Following</span>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-lg mb-4">Personal Information</h3>
+                <form className="space-y-4" onSubmit={handleSaveProfile}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" />
+                    <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" />
+                  </div>
+                  <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email address" />
+                  <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" />
+                  <textarea
+                    rows={4}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    className="flex w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                  />
+                  <Button type="submit" className="w-full" disabled={isSaving}>{isSaving ? "Saving..." : "Save Profile"}</Button>
+                </form>
               </CardContent>
             </Card>
 
@@ -160,7 +299,7 @@ export default function ProfilePage() {
           <div className="md:col-span-2 space-y-6">
             <h3 className="font-semibold text-xl text-foreground">Achievements</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <Card className="bg-gradient-to-br from-amber-50 to-amber-100/50 border-amber-200 shadow-none">
+              <Card className="bg-linear-to-br from-amber-50 to-amber-100/50 border-amber-200 shadow-none">
                 <CardContent className="p-5 flex flex-col items-center text-center">
                   <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center mb-3">
                     <Award className="h-6 w-6 text-amber-600" />
@@ -169,7 +308,7 @@ export default function ProfilePage() {
                   <p className="text-xs text-amber-700/80 mt-1">Visited 20+ countries</p>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200 shadow-none">
+              <Card className="bg-linear-to-br from-blue-50 to-blue-100/50 border-blue-200 shadow-none">
                 <CardContent className="p-5 flex flex-col items-center text-center">
                   <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
                     <Map className="h-6 w-6 text-blue-600" />
@@ -178,7 +317,7 @@ export default function ProfilePage() {
                   <p className="text-xs text-blue-700/80 mt-1">Created 10+ itineraries</p>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 border-emerald-200 shadow-none">
+              <Card className="bg-linear-to-br from-emerald-50 to-emerald-100/50 border-emerald-200 shadow-none">
                 <CardContent className="p-5 flex flex-col items-center text-center">
                   <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
                     <Award className="h-6 w-6 text-emerald-600" />
@@ -190,12 +329,14 @@ export default function ProfilePage() {
             </div>
 
             <h3 className="font-semibold text-xl text-foreground mt-8 mb-4">Past Trips map</h3>
-            <Card className="overflow-hidden border-border h-[300px]">
-              <div className="w-full h-full bg-muted flex items-center justify-center">
-                <p className="text-muted-foreground flex items-center">
-                  <MapPin className="mr-2 h-5 w-5" /> Interactive map coming soon
-                </p>
-              </div>
+            <Card className="overflow-hidden border-border h-75">
+              <iframe
+                title="Past Trips Map"
+                className="h-full w-full"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                src="https://www.google.com/maps?q=Kyoto%2C%20Japan&z=10&output=embed"
+              />
             </Card>
           </div>
         </div>
@@ -279,7 +420,7 @@ export default function ProfilePage() {
                     onChange={(e) => setTempUrl(e.target.value)}
                     autoFocus
                   />
-                  <p className="text-xs text-muted-foreground">Paste a direct link to an image. Make sure it's square!</p>
+                  <p className="text-xs text-muted-foreground">Paste a direct link to an image. Make sure it&apos;s square!</p>
                 </div>
               </div>
               <div className="p-4 border-t border-border flex justify-end gap-3 bg-muted/30">
