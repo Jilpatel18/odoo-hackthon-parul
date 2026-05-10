@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Plus, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -13,26 +14,32 @@ const stats = [
   { name: "Cities Explored", value: "24" },
 ];
 
-const upcomingTrips = [
-  {
-    id: 1,
-    title: "Summer in Kyoto",
-    destination: "Kyoto, Japan",
-    date: "Aug 12 - Aug 24, 2026",
-    image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=600&auto=format&fit=crop",
-  },
-  {
-    id: 2,
-    title: "Swiss Alps Adventure",
-    destination: "Zermatt, Switzerland",
-    date: "Dec 05 - Dec 15, 2026",
-    image: "https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?q=80&w=600&auto=format&fit=crop",
-  }
-];
+
 
 export default function DashboardPage() {
   const currentUser = useDashboardUser();
   const greetingName = currentUser?.name?.split(/\s+/)[0] || "Traveler";
+  
+  const [trips, setTrips] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTrips = async () => {
+      try {
+        const res = await fetch("/api/trips");
+        const data = await res.json();
+        if (data.success) {
+          // Sort and take the top 2 upcoming/active trips
+          setTrips(data.trips.slice(0, 2));
+        }
+      } catch (error) {
+        console.error("Error fetching trips:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTrips();
+  }, []);
 
   return (
     <div className="space-y-8 pb-8">
@@ -87,40 +94,48 @@ export default function DashboardPage() {
           </Link>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {upcomingTrips.map((trip, index) => (
+          {isLoading ? (
+            <div className="col-span-full py-12 text-center text-muted-foreground">Loading your trips...</div>
+          ) : trips.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-muted-foreground bg-muted/20 rounded-2xl border-2 border-dashed border-border">
+              <p>No upcoming trips yet.</p>
+            </div>
+          ) : trips.map((trip, index) => (
             <motion.div
               key={trip.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1, duration: 0.4 }}
             >
-              <Card className="overflow-hidden h-full flex flex-col border-border group cursor-pointer hover:border-primary-200">
-                <div className="aspect-[4/3] relative overflow-hidden bg-muted">
-                  <img 
-                    src={trip.image} 
-                    alt={trip.title}
-                    className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </div>
-                <CardHeader>
-                  <CardTitle className="text-xl line-clamp-1">{trip.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-3 pt-0">
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <MapPin className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="line-clamp-1">{trip.destination}</span>
+              <Link href={`/dashboard/trips/${trip.id}`} className="block h-full">
+                <Card className="overflow-hidden h-full flex flex-col border-border group cursor-pointer hover:border-primary-200 transition-all">
+                  <div className="aspect-[4/3] relative overflow-hidden bg-muted">
+                    <img 
+                      src={trip.image || "https://images.unsplash.com/photo-1488646953014-85cb44e25828?q=80&w=600&auto=format&fit=crop"} 
+                      alt={trip.title}
+                      className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   </div>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span>{trip.date}</span>
-                  </div>
-                </CardContent>
-                <CardFooter className="pt-0 border-t border-border mt-auto flex items-center justify-between bg-muted/30">
-                  <span className="text-sm font-medium text-foreground">View Itinerary</span>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary-600 transition-colors" />
-                </CardFooter>
-              </Card>
+                  <CardHeader>
+                    <CardTitle className="text-xl line-clamp-1 group-hover:text-primary-600 transition-colors">{trip.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-1 space-y-3 pt-0">
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <MapPin className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="line-clamp-1">{trip.destination}</span>
+                    </div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span>{trip.date}</span>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="pt-0 border-t border-border mt-auto flex items-center justify-between bg-muted/30">
+                    <span className="text-sm font-medium text-foreground">View Itinerary</span>
+                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary-600 transition-all group-hover:translate-x-1" />
+                  </CardFooter>
+                </Card>
+              </Link>
             </motion.div>
           ))}
           
@@ -128,7 +143,7 @@ export default function DashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: upcomingTrips.length * 0.1, duration: 0.4 }}
+            transition={{ delay: (isLoading ? 1 : trips.length) * 0.1, duration: 0.4 }}
           >
             <Link href="/dashboard/trips/new" className="block h-full">
               <Card className="h-full min-h-[300px] border-2 border-dashed border-border hover:border-primary-300 hover:bg-primary-50/50 transition-colors flex flex-col items-center justify-center text-center p-6 cursor-pointer group shadow-none">
