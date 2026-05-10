@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, Filter, ArrowUpDown, Layers, Plus, FileText, MapPin, Calendar, Edit2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -22,7 +23,10 @@ type Trip = {
   title: string;
 };
 
-export default function NotesPage() {
+export function NotesContent({ fixedTripId }: { fixedTripId?: string }) {
+  const searchParams = useSearchParams();
+  const initialTripId = fixedTripId || searchParams.get("tripId") || "all";
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [sortMode, setSortMode] = useState<"newest" | "oldest">("newest");
@@ -35,7 +39,7 @@ export default function NotesPage() {
   const [saveError, setSaveError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [selectedTripId, setSelectedTripId] = useState<string>("all");
+  const [selectedTripId, setSelectedTripId] = useState<string>(initialTripId);
 
   const fetchNotesAndTrips = async () => {
     try {
@@ -184,30 +188,41 @@ export default function NotesPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Trip Notes</h1>
-          <p className="mt-1 text-muted-foreground">Keep all your important reminders and details in one place.</p>
+    <div className={fixedTripId ? "space-y-6" : "space-y-6 pb-8"}>
+      {!fixedTripId && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">Travel Notes</h1>
+            <p className="text-muted-foreground mt-1">Keep track of your ideas, bookings, and tips.</p>
+          </div>
+          <Button onClick={() => { setEditingNote(null); setIsModalOpen(true); }} className="bg-primary-600 text-white hover:bg-primary-700">
+            <Plus className="mr-2 h-4 w-4" /> Add Note
+          </Button>
         </div>
-        <Button onClick={() => { setEditingNote(null); setSaveError(""); setIsModalOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" /> Add Note
-        </Button>
-      </div>
+      )}
 
       <div className="flex flex-col lg:flex-row items-center gap-3 w-full bg-card p-4 rounded-xl border border-border">
-        <div className="w-full lg:w-64">
-          <select 
-            value={selectedTripId}
-            onChange={(e) => setSelectedTripId(e.target.value)}
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-          >
-            <option value="all">All Trips</option>
-            {trips.map((trip) => (
-              <option key={trip.id} value={trip.id}>Trip: {trip.title}</option>
-            ))}
-          </select>
-        </div>
+        {!fixedTripId && (
+          <div className="w-full lg:w-64">
+            <select 
+              value={selectedTripId}
+              onChange={(e) => setSelectedTripId(e.target.value)}
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <option value="all">All Trips</option>
+              {trips.map((trip) => (
+                <option key={trip.id} value={trip.id}>Trip: {trip.title}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {fixedTripId && (
+          <div className="flex-none">
+            <Button onClick={() => { setEditingNote(null); setIsModalOpen(true); }} className="bg-primary-600 text-white hover:bg-primary-700">
+              <Plus className="mr-2 h-4 w-4" /> Add Note
+            </Button>
+          </div>
+        )}
         <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -363,5 +378,13 @@ export default function NotesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function NotesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <NotesContent />
+    </Suspense>
   );
 }

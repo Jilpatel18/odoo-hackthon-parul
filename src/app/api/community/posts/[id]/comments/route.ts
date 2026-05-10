@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { query } from "@/lib/db";
 import { getSessionUser } from "@/lib/session";
 
-export const dynamic = 'force-dynamic';
+
+
+type Params = { params: Promise<{ id: string }> };
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: Params
 ) {
   try {
     const { id } = await params;
@@ -44,7 +46,7 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: Params
 ) {
   const session = await getSessionUser();
   if (!session?.userId) {

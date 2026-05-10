@@ -53,14 +53,29 @@ export default function ProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatarUrl);
   const [followers, setFollowers] = useState(initialProfile.followers);
   const [following, setFollowing] = useState(initialProfile.following);
+  const [trips, setTrips] = useState<any[]>([]);
   const [tempUrl, setTempUrl] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const loadProfile = async () => {
+    const loadData = async () => {
       try {
-        const res = await fetch("/api/account/profile", { cache: "no-store" });
+        const [res, tripsRes] = await Promise.all([
+          fetch("/api/account/profile", { cache: "no-store" }),
+          fetch("/api/trips")
+        ]);
+        
         const data = await res.json();
+        const tripsData = await tripsRes.json();
+
+        if (tripsData.success) {
+          setTrips(tripsData.trips);
+        }
+
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
 
         if (!res.ok || !data.success) {
           throw new Error(data.error || "Failed to load profile");
@@ -82,7 +97,7 @@ export default function ProfilePage() {
       }
     };
 
-    loadProfile();
+    loadData();
   }, []);
 
   const persistProfile = async (nextValues?: Partial<ProfileData>) => {
@@ -321,16 +336,39 @@ export default function ProfilePage() {
               </Card>
             </div>
 
-            <h3 className="font-semibold text-xl text-foreground mt-8 mb-4">Past Trips map</h3>
-            <Card className="overflow-hidden border-border h-75">
-              <iframe
-                title="Past Trips Map"
-                className="h-full w-full"
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                src="https://www.google.com/maps?q=Kyoto%2C%20Japan&z=10&output=embed"
-              />
-            </Card>
+            <h3 className="font-semibold text-xl text-foreground mt-8 mb-4">My Trips</h3>
+            {trips.length === 0 ? (
+              <Card className="border-border border-dashed p-8 text-center bg-transparent">
+                <MapPin className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">You haven't created any trips yet.</p>
+                <Link href="/dashboard/trips/new">
+                  <Button className="mt-4" variant="outline">Plan a Trip</Button>
+                </Link>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {trips.map(trip => (
+                  <Link key={trip.id} href={`/dashboard/trips/${trip.id}`}>
+                    <Card className="overflow-hidden hover:shadow-md transition-shadow group border-border cursor-pointer h-full">
+                      <div className="h-32 w-full relative">
+                        <ImageWithFallback src={trip.image || 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1200&auto=format&fit=crop'} alt={trip.title} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        <div className="absolute bottom-3 left-3 right-3 text-white">
+                          <h4 className="font-bold truncate">{trip.title}</h4>
+                          <p className="text-xs text-white/80">{trip.date}</p>
+                        </div>
+                      </div>
+                      <CardContent className="p-3 bg-card">
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <MapPin className="mr-1 h-3 w-3" />
+                          <span className="truncate">{trip.destination}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

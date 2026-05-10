@@ -19,8 +19,11 @@ CREATE TABLE IF NOT EXISTS trips (
   cover_image VARCHAR(255),
   start_date DATE,
   end_date DATE,
+  budget DECIMAL(10, 2) DEFAULT 5000,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS budget DECIMAL(10, 2) DEFAULT 5000;
 
 -- Trip Stops (Cities/Destinations within a trip)
 CREATE TABLE IF NOT EXISTS trip_stops (
@@ -137,4 +140,13 @@ CREATE TABLE IF NOT EXISTS community_follows (
   followee_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (follower_id, followee_id)
+);
+
+-- Community comments
+CREATE TABLE IF NOT EXISTS community_post_comments (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER REFERENCES community_posts(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

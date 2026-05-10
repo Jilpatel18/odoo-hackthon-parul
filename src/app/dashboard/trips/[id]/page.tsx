@@ -9,6 +9,9 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
 import toast from "react-hot-toast";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
+import { BudgetContent } from "@/app/dashboard/budget/page";
+import { PackingContent } from "@/app/dashboard/packing/page";
+import { NotesContent } from "@/app/dashboard/notes/page";
 
 type TripData = {
   id: number;
@@ -347,14 +350,21 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
         </div>
       )}
       
-      {activeTab !== "itinerary" && (
-        <div className="py-12 text-center border-2 border-dashed border-border rounded-xl mt-4">
-          <Layers className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium text-foreground mb-2">Manage {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h3>
-          <p className="text-muted-foreground mb-6">Manage all your {activeTab} details directly from the dashboard tool.</p>
-          <Link href={`/dashboard/${activeTab}`}>
-            <Button>Go to {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Dashboard</Button>
-          </Link>
+      {activeTab === "budget" && (
+        <div className="pt-4 border border-border rounded-xl p-6 bg-card">
+          <BudgetContent fixedTripId={trip.id.toString()} />
+        </div>
+      )}
+
+      {activeTab === "packing" && (
+        <div className="pt-4 border border-border rounded-xl p-6 bg-card">
+          <PackingContent fixedTripId={trip.id.toString()} />
+        </div>
+      )}
+
+      {activeTab === "notes" && (
+        <div className="pt-4 border border-border rounded-xl p-6 bg-card">
+          <NotesContent fixedTripId={trip.id.toString()} />
         </div>
       )}
     </div>

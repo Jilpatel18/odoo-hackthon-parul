@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { Plus, Download, Receipt, ArrowUpRight, ArrowDownRight, X, Edit2, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -33,7 +34,10 @@ const barData = [
   { name: 'Aug 16', amount: 310 },
 ];
 
-export default function BudgetPage() {
+export function BudgetContent({ fixedTripId }: { fixedTripId?: string }) {
+  const searchParams = useSearchParams();
+  const initialTripId = fixedTripId || searchParams.get("tripId") || "all";
+  
   const [showAllExpenses, setShowAllExpenses] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expensesList, setExpensesList] = useState<Expense[]>([]);
@@ -45,7 +49,7 @@ export default function BudgetPage() {
   const [newCategory, setNewCategory] = useState("Food");
 
   const [trips, setTrips] = useState<any[]>([]);
-  const [selectedTripId, setSelectedTripId] = useState<string>("all");
+  const [selectedTripId, setSelectedTripId] = useState<string>(initialTripId);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [editBudgetAmount, setEditBudgetAmount] = useState("");
   const [isUpdatingBudget, setIsUpdatingBudget] = useState(false);
@@ -167,35 +171,45 @@ export default function BudgetPage() {
   const budgetPercentage = totalBudget === 0 ? 0 : Math.min(Math.round((totalSpent / totalBudget) * 100), 100);
 
   return (
-    <div className="space-y-8 pb-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center space-x-4">
-            <span>Budget & Expenses</span>
-            <select 
-              value={selectedTripId}
-              onChange={(e) => setSelectedTripId(e.target.value)}
-              className="text-sm font-medium border border-border rounded-lg px-3 py-1.5 bg-background shadow-sm"
-            >
-              <option value="all">All Trips</option>
-              {trips.map(t => (
-                <option key={t.id} value={t.id}>{t.title}</option>
-              ))}
-            </select>
-          </h1>
-          <p className="mt-1 text-muted-foreground">Track your spending across {selectedTripId === 'all' ? 'all your adventures' : 'this trip'}.</p>
+    <div className={fixedTripId ? "space-y-6" : "space-y-6 pb-8"}>
+      {/* Header */}
+      {!fixedTripId ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center space-x-4">
+              <span>Budget & Expenses</span>
+              <select 
+                value={selectedTripId}
+                onChange={(e) => setSelectedTripId(e.target.value)}
+                className="text-sm font-medium border border-border rounded-lg px-3 py-1.5 bg-background shadow-sm"
+              >
+                <option value="all">All Trips</option>
+                {trips.map(t => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+            </h1>
+            <p className="mt-1 text-muted-foreground">Track your spending across {selectedTripId === 'all' ? 'all your adventures' : 'this trip'}.</p>
+          </div>
+          <div className="flex gap-3">
+            <Button variant="outline" className="hidden sm:flex">
+              <Download className="mr-2 h-4 w-4" />
+              Export Report
+            </Button>
+            <Button onClick={() => setShowExpenseModal(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Expense
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="hidden sm:flex" onClick={handleExport}>
-            <Download className="mr-2 h-4 w-4" />
-            Export Report
-          </Button>
+      ) : (
+        <div className="flex justify-end">
           <Button onClick={() => setShowExpenseModal(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Expense
           </Button>
         </div>
-      </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -432,6 +446,14 @@ export default function BudgetPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function BudgetPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <BudgetContent />
+    </Suspense>
   );
 }
 

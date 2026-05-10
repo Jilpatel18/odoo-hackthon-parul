@@ -31,6 +31,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/trips');
+
+  if (isDashboardRoute && token === 'mock-admin-token') {
+    return NextResponse.redirect(new URL('/admin', request.url));
+  }
+
   if (!token) {
     return NextResponse.redirect(new URL('/login', request.url));
   }

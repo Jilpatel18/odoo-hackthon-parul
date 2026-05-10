@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Check, Trash2, GripVertical, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -9,7 +10,10 @@ import toast from "react-hot-toast";
 
 type Item = { id: number; name: string; packed: boolean; category: string };
 
-export default function PackingPage() {
+export function PackingContent({ fixedTripId }: { fixedTripId?: string }) {
+  const searchParams = useSearchParams();
+  const initialTripId = fixedTripId || searchParams.get("tripId") || "all";
+
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showItemModal, setShowItemModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -20,7 +24,7 @@ export default function PackingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [trips, setTrips] = useState<any[]>([]);
-  const [selectedTripId, setSelectedTripId] = useState<string>("all");
+  const [selectedTripId, setSelectedTripId] = useState<string>(initialTripId);
 
   useEffect(() => {
     const loadData = async () => {
@@ -144,25 +148,27 @@ export default function PackingPage() {
   const progress = filteredItems.length === 0 ? 0 : Math.round((packedCount / filteredItems.length) * 100);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center space-x-4">
-            <span>Packing List</span>
-            <select 
-              value={selectedTripId}
-              onChange={(e) => setSelectedTripId(e.target.value)}
-              className="text-sm font-medium border border-border rounded-lg px-3 py-1.5 bg-background shadow-sm"
-            >
-              <option value="all">All Trips</option>
-              {trips.map(t => (
-                <option key={t.id} value={t.id}>{t.title}</option>
-              ))}
-            </select>
-          </h1>
-          <p className="mt-1 text-muted-foreground">Don&apos;t forget the essentials for {selectedTripId === 'all' ? 'your trips' : 'this trip'}.</p>
+    <div className={fixedTripId ? "space-y-6" : "max-w-4xl mx-auto space-y-8 pb-8"}>
+      {!fixedTripId && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center space-x-4">
+              <span>Packing List</span>
+              <select 
+                value={selectedTripId}
+                onChange={(e) => setSelectedTripId(e.target.value)}
+                className="text-sm font-medium border border-border rounded-lg px-3 py-1.5 bg-background shadow-sm"
+              >
+                <option value="all">All Trips</option>
+                {trips.map(t => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+            </h1>
+            <p className="mt-1 text-muted-foreground">Don&apos;t forget the essentials for {selectedTripId === 'all' ? 'your trips' : 'this trip'}.</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <Card className="border-border">
         <CardContent className="p-6">
@@ -331,5 +337,13 @@ export default function PackingPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PackingPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
+      <PackingContent />
+    </Suspense>
   );
 }
