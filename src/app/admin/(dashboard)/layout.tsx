@@ -48,10 +48,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <div className="flex-1"></div>
           <div className="flex items-center space-x-4">
             <ThemeToggle />
-            <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-              Back to App
-            </Link>
-            <div className="h-6 w-px bg-border mx-2"></div>
+
             <button 
               onClick={async () => {
                 await fetch("/api/auth/logout", { method: "POST" });

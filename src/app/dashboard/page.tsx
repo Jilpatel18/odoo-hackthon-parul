@@ -37,8 +37,17 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 pb-8">
       {/* Hero Section */}
-      <div className="relative overflow-hidden rounded-3xl bg-primary-900 px-6 py-12 sm:px-12 sm:py-16">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
+      <div className="relative overflow-hidden rounded-3xl bg-primary-900 px-6 py-12 sm:px-12 sm:py-16 shadow-xl shadow-primary-500/20">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2000&auto=format&fit=crop" 
+            alt="Travel background" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-900 via-primary-900/80 to-transparent"></div>
+        </div>
+        
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">

@@ -80,7 +80,9 @@ export function DashboardLayout({ children, currentUser }: { children: React.Rea
           </div>
           <nav className="flex-1 space-y-2">
             {navigation.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const isActive = item.href === "/dashboard" 
+                ? pathname === "/dashboard" 
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.name}
@@ -121,7 +123,9 @@ export function DashboardLayout({ children, currentUser }: { children: React.Rea
         <div className="flex flex-1 flex-col overflow-y-auto pt-6 px-4">
           <nav className="flex-1 space-y-1.5">
             {navigation.map((item) => {
-              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+              const isActive = item.href === "/dashboard" 
+                ? pathname === "/dashboard" 
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.name}
