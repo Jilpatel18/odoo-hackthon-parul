@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -25,6 +26,9 @@ const navigation = [
   { name: "Packing", href: "/dashboard/packing", icon: CheckSquare },
   { name: "Profile", href: "/dashboard/profile", icon: User },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  // Adding Community and Notes links to match the plan
+  { name: "Community", href: "/dashboard/community", icon: Map },
+  { name: "Journal", href: "/dashboard/notes", icon: CheckSquare },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -139,6 +143,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1"></div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
+              <ThemeToggle />
               {/* Profile dropdown or notifications could go here */}
               <Button size="sm" variant="outline" className="rounded-full">
                 John Doe

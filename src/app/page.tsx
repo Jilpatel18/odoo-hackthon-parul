@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { Button } from "@/components/ui/Button";
 import { Plane, Map, Wallet, Camera } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
-export default function Home() {
+export default async function Home() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  const isAuthenticated = !!token;
+  const isAdmin = token === 'mock-admin-token'; // basic mock check for admin
+
   return (
     <div className="min-h-screen bg-background selection:bg-primary-100 selection:text-primary-900">
       <nav className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
@@ -15,12 +22,28 @@ export default function Home() {
               <span className="text-xl font-bold tracking-tight">Traveloop</span>
             </div>
             <div className="flex items-center space-x-4">
-              <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                Log in
-              </Link>
-              <Link href="/signup">
-                <Button>Get Started</Button>
-              </Link>
+              <ThemeToggle />
+              {isAuthenticated ? (
+                <>
+                  {isAdmin && (
+                    <Link href="/admin">
+                      <Button variant="outline">Admin Panel</Button>
+                    </Link>
+                  )}
+                  <Link href="/dashboard">
+                    <Button>Go to Dashboard</Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    Log in
+                  </Link>
+                  <Link href="/signup">
+                    <Button>Get Started</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -40,11 +63,19 @@ export default function Home() {
               Traveloop is the handcrafted workspace for your travel planning. From itineraries to budgets, everything you need to plan a perfect trip in one beautiful place.
             </p>
             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-              <Link href="/signup">
-                <Button size="lg" className="rounded-full px-8 text-base h-12 shadow-medium hover:shadow-elevated transition-all">
-                  Start Planning for Free
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link href="/dashboard">
+                  <Button size="lg" className="rounded-full px-8 text-base h-12 shadow-medium hover:shadow-elevated transition-all">
+                    Go to your Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/signup">
+                  <Button size="lg" className="rounded-full px-8 text-base h-12 shadow-medium hover:shadow-elevated transition-all">
+                    Start Planning for Free
+                  </Button>
+                </Link>
+              )}
               <Link href="#features">
                 <Button variant="outline" size="lg" className="rounded-full px-8 text-base h-12">
                   Explore Features
