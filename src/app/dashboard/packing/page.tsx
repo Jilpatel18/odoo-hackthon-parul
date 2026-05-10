@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Check, Trash2, GripVertical, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
+import toast from "react-hot-toast";
 
-type Item = { id: number; text: string; packed: boolean; category: string };
+type Item = { id: number; name: string; packed: boolean; category: string };
 
 export default function PackingPage() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -14,14 +15,34 @@ export default function PackingPage() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [categories, setCategories] = useState(["All", "Essentials", "Electronics", "Clothing", "Toiletries"]);
   
-  const [items, setItems] = useState<Item[]>([
-    { id: 1, text: "Passports & IDs", packed: true, category: "Essentials" },
-    { id: 2, text: "Travel Insurance Docs", packed: false, category: "Essentials" },
-    { id: 3, text: "Phone Chargers", packed: false, category: "Electronics" },
-    { id: 4, text: "Power Bank", packed: true, category: "Electronics" },
-    { id: 5, text: "T-Shirts (x5)", packed: false, category: "Clothing" },
-    { id: 6, text: "Light Jacket", packed: false, category: "Clothing" },
-  ]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const res = await fetch("/api/packing");
+        const data = await res.json();
+        if (data.success) {
+          setItems(data.items);
+          
+          // Extract unique categories
+          const uniqueCats = Array.from(new Set(data.items.map((i: Item) => i.category)));
+          const baseCats = ["All", "Essentials", "Electronics", "Clothing", "Toiletries"];
+          const combinedCats = Array.from(new Set([...baseCats, ...uniqueCats])) as string[];
+          setCategories(combinedCats);
+        } else {
+          toast.error(data.error || "Failed to load packing items");
+        }
+      } catch (error) {
+        toast.error("Failed to load packing items");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchItems();
+  }, []);
 
   const [newItemText, setNewItemText] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("Essentials");
@@ -38,26 +59,67 @@ export default function PackingPage() {
     setShowCategoryModal(false);
   };
 
-  const toggleItem = (id: number) => {
+  const toggleItem = async (id: number) => {
+    const itemToToggle = items.find(i => i.id === id);
+    if (!itemToToggle) return;
+    
+    // Optimistic update
     setItems(items.map(item => item.id === id ? { ...item, packed: !item.packed } : item));
+    
+    try {
+      await fetch('/api/packing', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, packed: !itemToToggle.packed })
+      });
+    } catch {
+      // Revert on error
+      setItems(items.map(item => item.id === id ? { ...item, packed: itemToToggle.packed } : item));
+      toast.error('Failed to update item');
+    }
   };
 
-  const deleteItem = (id: number) => {
+  const deleteItem = async (id: number) => {
+    // Optimistic update
+    const previousItems = [...items];
     setItems(items.filter(item => item.id !== id));
+    
+    try {
+      const res = await fetch(`/api/packing?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      toast.success('Item removed');
+    } catch {
+      setItems(previousItems);
+      toast.error('Failed to delete item');
+    }
   };
 
-  const addItem = (e?: React.FormEvent | React.MouseEvent) => {
+  const addItem = async (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
     if (!newItemText.trim()) return;
-    const newItem: Item = {
-      id: Date.now(),
-      text: newItemText,
-      packed: false,
-      category: newItemCategory
-    };
-    setItems([...items, newItem]);
-    setNewItemText("");
-    setShowItemModal(false);
+    
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/packing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newItemText, category: newItemCategory })
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setItems([...items, data.item]);
+        setNewItemText("");
+        setShowItemModal(false);
+        toast.success('Item added');
+      } else {
+        toast.error(data.error || 'Failed to add item');
+      }
+    } catch {
+      toast.error('Failed to add item');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const filteredItems = items.filter(item => activeCategory === "All" || item.category === activeCategory);
@@ -141,7 +203,7 @@ export default function PackingPage() {
                     {item.packed && <Check className="h-4 w-4" />}
                   </button>
                   <span className={`text-sm ${item.packed ? 'text-muted-foreground line-through' : 'text-foreground font-medium'}`}>
-                    {item.text}
+                    {item.name}
                   </span>
                 </div>
                 <div className="flex items-center space-x-3">
@@ -233,7 +295,7 @@ export default function PackingPage() {
               </div>
               <div className="p-4 border-t border-border flex justify-end gap-3 bg-muted/30">
                 <Button type="button" variant="outline" onClick={() => setShowItemModal(false)}>Cancel</Button>
-                <Button type="submit">Add Item</Button>
+                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Adding..." : "Add Item"}</Button>
               </div>
             </form>
           </div>

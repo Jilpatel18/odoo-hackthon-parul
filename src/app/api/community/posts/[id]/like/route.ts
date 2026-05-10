@@ -24,8 +24,21 @@ export async function POST(_: Request, { params }: Params) {
       await query("DELETE FROM community_post_likes WHERE post_id = $1 AND user_id = $2", [postId, session.userId]);
       liked = false;
     } else {
-      await query("INSERT INTO community_post_likes (post_id, user_id) VALUES ($1, $2)", [postId, session.userId]);
-      liked = true;
+      try {
+        await query("INSERT INTO community_post_likes (post_id, user_id) VALUES ($1, $2)", [postId, session.userId]);
+        liked = true;
+      } catch (insertError: any) {
+        // Handle unique constraint violation (race condition from double clicking)
+        if (insertError.code === '23505') {
+          liked = true; // It's already liked
+        } 
+        // Handle foreign key violation (e.g., user or post doesn't exist)
+        else if (insertError.code === '23503') {
+          return NextResponse.json({ success: false, error: "Post or user not found" }, { status: 404 });
+        } else {
+          throw insertError;
+        }
+      }
     }
 
     const countResult = await query(
@@ -34,8 +47,8 @@ export async function POST(_: Request, { params }: Params) {
     );
 
     return NextResponse.json({ success: true, liked, likes: countResult.rows[0]?.likes || 0 });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Community like toggle error:", error);
-    return NextResponse.json({ success: false, error: "Failed to toggle like" }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Failed to toggle like: " + (error.message || "Unknown error") }, { status: 500 });
   }
 }

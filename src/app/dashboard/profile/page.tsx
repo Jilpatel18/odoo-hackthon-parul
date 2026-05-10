@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import Link from "next/link";
 import toast from 'react-hot-toast';
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { useDashboardUser } from "@/components/layout/DashboardLayout";
 
 type ProfileData = {
@@ -17,6 +19,8 @@ type ProfileData = {
   bio: string;
   coverUrl: string;
   avatarUrl: string;
+  followers: number;
+  following: number;
 };
 
 const buildDefaultProfile = (displayName: string | undefined, email: string | undefined): ProfileData => {
@@ -30,6 +34,8 @@ const buildDefaultProfile = (displayName: string | undefined, email: string | un
     bio: "Passionate traveler, food lover, and photography enthusiast.",
     coverUrl: "https://images.unsplash.com/photo-1506744626753-1fa44df14c28?q=80&w=2000&auto=format&fit=crop",
     avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=200&auto=format&fit=crop",
+    followers: 0,
+    following: 0,
   };
 };
 
@@ -45,10 +51,10 @@ export default function ProfilePage() {
   const [bio, setBio] = useState(initialProfile.bio);
   const [coverUrl, setCoverUrl] = useState(initialProfile.coverUrl);
   const [avatarUrl, setAvatarUrl] = useState(initialProfile.avatarUrl);
+  const [followers, setFollowers] = useState(initialProfile.followers);
+  const [following, setFollowing] = useState(initialProfile.following);
   const [tempUrl, setTempUrl] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -68,6 +74,8 @@ export default function ProfilePage() {
         setBio(profile.bio);
         setCoverUrl(profile.coverUrl);
         setAvatarUrl(profile.avatarUrl);
+        setFollowers(profile.followers || 0);
+        setFollowing(profile.following || 0);
       } catch (error) {
         console.error(error);
         toast.error("Unable to load profile from database.");
@@ -86,8 +94,10 @@ export default function ProfilePage() {
       bio,
       coverUrl,
       avatarUrl,
+      followers,
+      following,
       ...nextValues,
-    };
+    } as ProfileData;
 
     const res = await fetch("/api/account/profile", {
       method: "PUT",
@@ -132,25 +142,6 @@ export default function ProfilePage() {
 
     setShowCoverModal(false);
     setTempUrl("");
-    setIsDragging(false);
-  };
-
-  const handleFileDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const file = e.dataTransfer.files[0];
-      const objectUrl = URL.createObjectURL(file);
-      setTempUrl(objectUrl);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const objectUrl = URL.createObjectURL(file);
-      setTempUrl(objectUrl);
-    }
   };
 
   const handleSaveAvatar = async (e: React.FormEvent) => {
@@ -174,10 +165,12 @@ export default function ProfilePage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-8">
       {/* Profile Header */}
-      <div 
-        className="relative h-48 rounded-3xl overflow-hidden bg-primary-900 mb-20 bg-cover bg-center"
-        style={{ backgroundImage: `url(${coverUrl})` }}
-      >
+      <div className="relative h-64 sm:h-80 w-full overflow-hidden">
+        <ImageWithFallback 
+          src={coverUrl} 
+          alt="Cover" 
+          className="absolute inset-0 w-full h-full"
+        />
         <div className="absolute inset-0 bg-black/30"></div>
         <Button 
           size="sm" 
@@ -195,7 +188,7 @@ export default function ProfilePage() {
       <div className="px-6 sm:px-10 relative">
         <div className="absolute -top-24 flex items-end space-x-6 z-10">
           <div className="relative h-32 w-32 rounded-full border-4 border-background overflow-hidden bg-muted group cursor-pointer">
-            <img 
+            <ImageWithFallback 
               src={avatarUrl} 
               alt={`${firstName} ${lastName}`.trim() || "Traveler"}
               className="h-full w-full object-cover transition-transform group-hover:scale-105"
@@ -241,7 +234,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex items-center text-sm">
                     <User className="h-4 w-4 text-muted-foreground mr-3" />
-                    <span>14 Followers • 28 Following</span>
+                    <span>{followers} Followers • {following} Following</span>
                   </div>
                 </div>
               </CardContent>
@@ -354,39 +347,7 @@ export default function ProfilePage() {
             </div>
             <form onSubmit={handleSaveCover}>
               <div className="p-6">
-                <div 
-                  className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${
-                    isDragging ? "border-primary-500 bg-primary-50" : "border-border hover:bg-muted/50"
-                  }`}
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={handleFileDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                  />
-                  {tempUrl ? (
-                    <div className="space-y-4">
-                      <div className="h-32 w-full rounded-lg bg-cover bg-center" style={{ backgroundImage: `url(${tempUrl})` }}></div>
-                      <p className="text-sm font-medium text-primary-600">Image selected! Click to change.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3 cursor-pointer flex flex-col items-center">
-                      <div className="h-12 w-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600">
-                        <UploadCloud className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Click to upload or drag and drop</p>
-                        <p className="text-xs text-muted-foreground mt-1">SVG, PNG, JPG or GIF (max. 5MB)</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <ImageUpload value={tempUrl} onChange={setTempUrl} />
               </div>
               <div className="p-4 border-t border-border flex justify-end gap-3 bg-muted/30">
                 <Button type="button" variant="outline" onClick={() => {
@@ -411,17 +372,8 @@ export default function ProfilePage() {
               </button>
             </div>
             <form onSubmit={handleSaveAvatar}>
-              <div className="p-6 space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Image URL</label>
-                  <Input 
-                    placeholder="https://example.com/avatar.jpg" 
-                    value={tempUrl}
-                    onChange={(e) => setTempUrl(e.target.value)}
-                    autoFocus
-                  />
-                  <p className="text-xs text-muted-foreground">Paste a direct link to an image. Make sure it&apos;s square!</p>
-                </div>
+              <div className="p-6">
+                <ImageUpload value={tempUrl} onChange={setTempUrl} />
               </div>
               <div className="p-4 border-t border-border flex justify-end gap-3 bg-muted/30">
                 <Button type="button" variant="outline" onClick={() => setShowAvatarModal(false)}>Cancel</Button>

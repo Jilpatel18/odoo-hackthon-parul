@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Calendar, MapPin, Camera, ArrowRight, Loader2 } from "lucide-react";
+import { Calendar, MapPin, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import toast from "react-hot-toast";
 
 export default function CreateTripPage() {
   const router = useRouter();
@@ -17,6 +19,7 @@ export default function CreateTripPage() {
     destination: "",
     startDate: "",
     endDate: "",
+    coverImage: "",
   });
 
   const handleNext = () => {
@@ -31,11 +34,25 @@ export default function CreateTripPage() {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/trips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tripData),
+      });
+      const data = await res.json();
+      
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to create trip");
+      }
+      
+      toast.success("Trip created successfully!");
+      router.push(`/dashboard/trips/${data.tripId}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create trip.");
       setIsLoading(false);
-      router.push("/dashboard/trips/1"); // Redirect to the newly created trip
-    }, 1500);
+    }
   };
 
   return (
@@ -151,22 +168,10 @@ export default function CreateTripPage() {
                   <label className="block text-sm font-medium text-foreground mb-2">
                     Cover Image
                   </label>
-                  <div className="mt-2 flex justify-center rounded-xl border border-dashed border-border px-6 py-10 hover:bg-muted/50 transition-colors cursor-pointer group">
-                    <div className="text-center">
-                      <Camera className="mx-auto h-12 w-12 text-muted-foreground group-hover:text-primary-500 transition-colors" aria-hidden="true" />
-                      <div className="mt-4 flex text-sm leading-6 text-muted-foreground justify-center">
-                        <label
-                          htmlFor="file-upload"
-                          className="relative cursor-pointer rounded-md font-semibold text-primary-600 focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-600 focus-within:ring-offset-2 hover:text-primary-500"
-                        >
-                          <span>Upload a file</span>
-                          <input id="file-upload" name="file-upload" type="file" className="sr-only" />
-                        </label>
-                        <p className="pl-1">or drag and drop</p>
-                      </div>
-                      <p className="text-xs leading-5 text-muted-foreground">PNG, JPG, GIF up to 10MB</p>
-                    </div>
-                  </div>
+                  <ImageUpload 
+                    value={tripData.coverImage} 
+                    onChange={(url) => setTripData({ ...tripData, coverImage: url })} 
+                  />
                 </div>
 
                 <div className="pt-4 flex justify-between items-center">

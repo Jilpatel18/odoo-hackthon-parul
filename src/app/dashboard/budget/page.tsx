@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { Plus, Download, Receipt, ArrowUpRight, ArrowDownRight, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import toast from 'react-hot-toast';
+
+type Expense = {
+  id: number;
+  title: string;
+  category: string;
+  amount: number;
+  date: string;
+};
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
 
@@ -25,41 +33,68 @@ const barData = [
   { name: 'Aug 16', amount: 310 },
 ];
 
-const initialExpenses = [
-  { id: 1, title: 'Dinner at Pontocho', category: 'Food', amount: 45.00, date: 'Aug 12, 2026' },
-  { id: 2, title: 'JR Pass 7 Days', category: 'Transport', amount: 210.00, date: 'Aug 10, 2026' },
-  { id: 3, title: 'Kyoto Hotel (3 Nights)', category: 'Lodging', amount: 350.00, date: 'Aug 05, 2026' },
-  { id: 4, title: 'Universal Studios Tickets', category: 'Activities', amount: 120.00, date: 'Aug 02, 2026' },
-  { id: 5, title: 'Airport Express Train', category: 'Transport', amount: 25.00, date: 'Aug 01, 2026' },
-  { id: 6, title: 'Matcha Ice Cream', category: 'Food', amount: 5.50, date: 'Aug 12, 2026' },
-];
-
 export default function BudgetPage() {
   const [showAllExpenses, setShowAllExpenses] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
-  const [expensesList, setExpensesList] = useState(initialExpenses);
+  const [expensesList, setExpensesList] = useState<Expense[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [newTitle, setNewTitle] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newCategory, setNewCategory] = useState("Food");
 
-  const handleAddExpense = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      try {
+        const res = await fetch('/api/budget');
+        const data = await res.json();
+        if (data.success) {
+          setExpensesList(data.expenses.map((e: any) => ({ ...e, amount: parseFloat(e.amount) })));
+        } else {
+          toast.error(data.error || 'Failed to load expenses');
+        }
+      } catch (error) {
+        toast.error('Failed to load expenses');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchExpenses();
+  }, []);
+
+  const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newAmount) return;
     
-    const newExpense = {
-      id: Date.now(),
-      title: newTitle,
-      category: newCategory,
-      amount: parseFloat(newAmount),
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    };
-    
-    setExpensesList([newExpense, ...expensesList]);
-    setShowExpenseModal(false);
-    setNewTitle("");
-    setNewAmount("");
-    toast.success("Expense added successfully!");
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/budget', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTitle,
+          category: newCategory,
+          amount: parseFloat(newAmount),
+          date: new Date().toISOString().split('T')[0]
+        }),
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setExpensesList([data.expense, ...expensesList]);
+        setShowExpenseModal(false);
+        setNewTitle("");
+        setNewAmount("");
+        toast.success("Expense added successfully!");
+      } else {
+        toast.error(data.error || "Failed to add expense");
+      }
+    } catch (error) {
+      toast.error("Failed to add expense");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
   const handleExport = () => {
     try {
@@ -83,6 +118,11 @@ export default function BudgetPage() {
       toast.error('Failed to export report.');
     }
   };
+
+  const totalSpent = expensesList.reduce((sum, item) => sum + item.amount, 0);
+  const totalBudget = 5000;
+  const remainingBudget = totalBudget - totalSpent;
+  const budgetPercentage = Math.min(Math.round((totalSpent / totalBudget) * 100), 100);
 
   return (
     <div className="space-y-8 pb-8">
@@ -112,7 +152,7 @@ export default function BudgetPage() {
               <WalletIcon className="h-4 w-4 text-primary-500" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-foreground">{formatCurrency(5000)}</p>
+              <p className="text-3xl font-bold text-foreground">{formatCurrency(totalBudget)}</p>
             </div>
           </CardContent>
         </Card>
@@ -124,8 +164,8 @@ export default function BudgetPage() {
               <ArrowUpRight className="h-4 w-4 text-red-500" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-foreground">{formatCurrency(2750)}</p>
-              <span className="text-sm font-medium text-red-500 bg-red-50 px-2 py-0.5 rounded-full">55%</span>
+              <p className="text-3xl font-bold text-foreground">{formatCurrency(totalSpent)}</p>
+              <span className={`text-sm font-medium px-2 py-0.5 rounded-full ${budgetPercentage > 100 ? 'text-red-600 bg-red-100' : 'text-red-500 bg-red-50'}`}>{budgetPercentage}%</span>
             </div>
           </CardContent>
         </Card>
@@ -137,7 +177,7 @@ export default function BudgetPage() {
               <ArrowDownRight className="h-4 w-4 text-emerald-500" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-foreground">{formatCurrency(2250)}</p>
+              <p className={`text-3xl font-bold ${remainingBudget < 0 ? 'text-red-500' : 'text-foreground'}`}>{formatCurrency(remainingBudget)}</p>
             </div>
           </CardContent>
         </Card>
@@ -218,7 +258,11 @@ export default function BudgetPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {(showAllExpenses ? expensesList : expensesList.slice(0, 3)).map((expense) => (
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading expenses...</p>
+            ) : expensesList.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No expenses added yet.</p>
+            ) : (showAllExpenses ? expensesList : expensesList.slice(0, 3)).map((expense) => (
               <div key={expense.id} className="flex items-center justify-between py-3 border-b border-border last:border-0 last:pb-0">
                 <div className="flex items-center space-x-4">
                   <div className="h-10 w-10 rounded-full bg-primary-50 flex items-center justify-center text-primary-600">
@@ -294,7 +338,7 @@ export default function BudgetPage() {
               </div>
               <div className="p-4 border-t border-border flex justify-end gap-3 bg-muted/30">
                 <Button type="button" variant="outline" onClick={() => setShowExpenseModal(false)}>Cancel</Button>
-                <Button type="submit">Save Expense</Button>
+                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save Expense"}</Button>
               </div>
             </form>
           </div>

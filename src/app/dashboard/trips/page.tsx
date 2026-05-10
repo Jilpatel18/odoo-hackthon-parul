@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { motion } from "framer-motion";
 import { Search, MapPin, Calendar, ArrowRight, Plus } from "lucide-react";
@@ -8,37 +8,45 @@ import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/Card";
+import toast from "react-hot-toast";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 
-const allTrips = [
-  {
-    id: 1,
-    title: "Summer in Kyoto",
-    destination: "Kyoto, Japan",
-    date: "Aug 12 - Aug 24, 2026",
-    status: "Upcoming",
-    image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=600&auto=format&fit=crop",
-  },
-  {
-    id: 2,
-    title: "Swiss Alps Adventure",
-    destination: "Zermatt, Switzerland",
-    date: "Dec 05 - Dec 15, 2026",
-    status: "Upcoming",
-    image: "https://images.unsplash.com/photo-1530122037265-a5f1f91d3b99?q=80&w=600&auto=format&fit=crop",
-  },
-  {
-    id: 3,
-    title: "Rome Weekend",
-    destination: "Rome, Italy",
-    date: "Mar 10 - Mar 14, 2026",
-    status: "Completed",
-    image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=600&auto=format&fit=crop",
-  }
-];
+type Trip = {
+  id: number;
+  title: string;
+  destination: string;
+  date: string;
+  status: string;
+  image: string;
+};
 
 export default function TripsPage() {
   const [filter, setFilter] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [allTrips, setAllTrips] = useState<Trip[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadTrips = async () => {
+      try {
+        const res = await fetch("/api/trips", { cache: "no-store" });
+        const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to load trips");
+        }
+        
+        setAllTrips(data.trips);
+      } catch (error) {
+        console.error(error);
+        toast.error("Unable to load trips from database.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadTrips();
+  }, []);
 
   const filteredTrips = allTrips.filter(trip => {
     const matchesSearch = trip.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -101,7 +109,11 @@ export default function TripsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredTrips.map((trip, index) => (
+        {isLoading ? (
+          <p className="text-muted-foreground col-span-full">Loading trips...</p>
+        ) : filteredTrips.length === 0 ? (
+          <p className="text-muted-foreground col-span-full">No trips found.</p>
+        ) : filteredTrips.map((trip, index) => (
           <motion.div
             key={trip.id}
             initial={{ opacity: 0, y: 20 }}
@@ -117,10 +129,10 @@ export default function TripsPage() {
                       {trip.status}
                     </span>
                   </div>
-                  <img 
-                    src={trip.image} 
+                  <ImageWithFallback 
+                    src={trip.image || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?q=80&w=600&auto=format&fit=crop'} 
                     alt={trip.title}
-                    className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
+                    className="w-full h-full"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>

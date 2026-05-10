@@ -17,10 +17,10 @@ type Note = {
   created_at: string;
 };
 
-const TRIPS = [
-  { id: 1, name: "Paris & Rome Adventure" },
-  { id: 2, name: "Swiss Alps Budget" },
-];
+type Trip = {
+  id: number;
+  title: string;
+};
 
 export default function NotesPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,33 +28,39 @@ export default function NotesPage() {
   const [sortMode, setSortMode] = useState<"newest" | "oldest">("newest");
   const [groupMode, setGroupMode] = useState<"none" | "trip">("none");
   const [notes, setNotes] = useState<Note[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [saveError, setSaveError] = useState("");
 
-  const fetchNotes = async () => {
+  const fetchNotesAndTrips = async () => {
     try {
-      const res = await fetch('/api/notes');
-      const data = await res.json();
-      if (data.success) {
-        setNotes(data.notes);
+      const [notesRes, tripsRes] = await Promise.all([
+        fetch('/api/notes'),
+        fetch('/api/trips')
+      ]);
+      const notesData = await notesRes.json();
+      const tripsData = await tripsRes.json();
+      
+      if (notesData.success) {
+        setNotes(notesData.notes);
       } else {
-        toast.error(data.error || 'Failed to load notes');
+        toast.error(notesData.error || 'Failed to load notes');
+      }
+      
+      if (tripsData.success) {
+        setTrips(tripsData.trips);
       }
     } catch {
-      toast.error('Failed to load notes');
+      toast.error('Failed to load data');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    const loadNotes = async () => {
-      await fetchNotes();
-    };
-
-    void loadNotes();
+    fetchNotesAndTrips();
   }, []);
 
   const filteredNotes = useMemo(() => {
@@ -87,8 +93,8 @@ export default function NotesPage() {
 
     const groups = new Map<string, Note[]>();
     filteredNotes.forEach((note) => {
-      const trip = TRIPS.find((item) => item.id === note.trip_id);
-      const label = trip ? trip.name : 'Ungrouped';
+      const trip = trips.find((item) => item.id === note.trip_id);
+      const label = trip ? trip.title : 'Ungrouped';
       const items = groups.get(label) || [];
       items.push(note);
       groups.set(label, items);
@@ -147,7 +153,7 @@ export default function NotesPage() {
       if (succeeded) {
         setIsModalOpen(false);
         setEditingNote(null);
-        await fetchNotes();
+        await fetchNotesAndTrips();
       }
     } catch {
       setSaveError('Failed to save note');
@@ -162,7 +168,7 @@ export default function NotesPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         toast.success('Note deleted!');
-        await fetchNotes();
+        await fetchNotesAndTrips();
       } else {
         toast.error(data.error || 'Failed to delete note');
       }
@@ -187,8 +193,8 @@ export default function NotesPage() {
         <div className="w-full lg:w-64">
           <select className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
             <option>All Trips</option>
-            {TRIPS.map((trip) => (
-              <option key={trip.id}>Trip: {trip.name}</option>
+            {trips.map((trip) => (
+              <option key={trip.id}>Trip: {trip.title}</option>
             ))}
           </select>
         </div>
@@ -316,9 +322,9 @@ export default function NotesPage() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Trip</label>
-                <select name="tripId" defaultValue={editingNote?.trip_id?.toString() || '1'} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                  {TRIPS.map((trip) => (
-                    <option key={trip.id} value={trip.id}>{trip.name}</option>
+                <select name="tripId" defaultValue={editingNote?.trip_id?.toString() || (trips.length > 0 ? trips[0].id.toString() : '')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  {trips.map((trip) => (
+                    <option key={trip.id} value={trip.id}>{trip.title}</option>
                   ))}
                 </select>
               </div>

@@ -31,6 +31,7 @@ export default function SettingsPage() {
   const defaultBilling = buildDefaultBilling(currentUser?.name, currentUser?.email);
   const [activeTab, setActiveTab] = useState("profile");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
   const [billing, setBilling] = useState<BillingState>(defaultBilling);
   const [cardholderName, setCardholderName] = useState(defaultBilling.cardholderName);
   const [cardNumber, setCardNumber] = useState(defaultBilling.cardNumber);
@@ -244,22 +245,7 @@ export default function SettingsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={async () => {
-                        const nextBilling = {
-                          ...billing,
-                          selectedPlan: billing.selectedPlan === 'Pro Plan' ? 'Premium Plan' : 'Pro Plan',
-                          subscriptionActive: true,
-                        };
-
-                        try {
-                          await saveBilling(nextBilling);
-                          setBilling(nextBilling);
-                          toast.success('Subscription plan updated successfully.');
-                        } catch (error) {
-                          console.error(error);
-                          toast.error('Failed to update plan.');
-                        }
-                      }}
+                      onClick={() => setShowPlanModal(true)}
                     >
                       Change Plan
                     </Button>
@@ -351,6 +337,61 @@ export default function SettingsPage() {
                       toast.error("Failed to save payment method.");
                     }
                   }}>Save Card</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Plan Modal */}
+          {showPlanModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-card w-full max-w-3xl rounded-xl shadow-elevated border border-border overflow-hidden">
+                <div className="p-4 border-b border-border flex justify-between items-center">
+                  <h3 className="font-semibold text-lg">Select a Subscription Plan</h3>
+                  <button onClick={() => setShowPlanModal(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { name: "Free Plan", price: "₹0/mo", features: ["1 Active Trip", "Basic Itinerary", "Community Access"] },
+                    { name: "Pro Plan", price: "₹9.99/mo", features: ["Unlimited Trips", "Budget Tracking", "Packing Lists", "Priority Support"] },
+                    { name: "Enterprise Plan", price: "₹29.99/mo", features: ["Everything in Pro", "Offline Access", "Custom Integrations", "Dedicated Agent"] }
+                  ].map(plan => (
+                    <div 
+                      key={plan.name} 
+                      className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${billing.selectedPlan === plan.name ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' : 'border-border hover:border-primary-300'}`}
+                      onClick={async () => {
+                        const nextBilling = {
+                          ...billing,
+                          selectedPlan: plan.name,
+                          subscriptionActive: true,
+                        };
+                        try {
+                          await saveBilling(nextBilling);
+                          setBilling(nextBilling);
+                          toast.success(`${plan.name} activated!`);
+                          setShowPlanModal(false);
+                        } catch (error) {
+                          toast.error('Failed to update plan.');
+                        }
+                      }}
+                    >
+                      <h4 className="text-xl font-bold mb-2">{plan.name}</h4>
+                      <div className="text-2xl font-black text-primary-600 mb-6">{plan.price}</div>
+                      <ul className="space-y-3 mb-6">
+                        {plan.features.map(f => (
+                          <li key={f} className="flex items-center text-sm">
+                            <Shield className="h-4 w-4 mr-2 text-green-500" />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                      <Button className="w-full" variant={billing.selectedPlan === plan.name ? "default" : "outline"}>
+                        {billing.selectedPlan === plan.name ? "Current Plan" : "Select Plan"}
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

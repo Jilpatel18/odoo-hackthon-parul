@@ -21,7 +21,9 @@ export async function GET() {
 
   try {
     const result = await query(
-      `SELECT u.name, u.email, p.location, p.bio, p.cover_url, p.avatar_url
+      `SELECT u.name, u.email, p.location, p.bio, p.cover_url, p.avatar_url,
+              (SELECT COUNT(*) FROM community_follows WHERE followee_id = u.id) as followers_count,
+              (SELECT COUNT(*) FROM community_follows WHERE follower_id = u.id) as following_count
        FROM users u
        LEFT JOIN user_profiles p ON p.user_id = u.id
        WHERE u.id = $1`,
@@ -45,6 +47,8 @@ export async function GET() {
         bio: row.bio || "Passionate traveler, food lover, and photography enthusiast.",
         coverUrl: row.cover_url || defaultCover,
         avatarUrl: row.avatar_url || defaultAvatar,
+        followers: parseInt(row.followers_count) || 0,
+        following: parseInt(row.following_count) || 0,
       },
     });
   } catch (error) {

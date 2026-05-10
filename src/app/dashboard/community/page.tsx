@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/Card";
 import toast from "react-hot-toast";
+import { ImageUpload } from "@/components/ui/ImageUpload";
+import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { useDashboardUser } from "@/components/layout/DashboardLayout";
 
 type CommunityPost = {
@@ -196,7 +198,7 @@ export default function CommunityPage() {
             <CardHeader className="p-4 sm:p-6 pb-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <img src={post.avatar} alt={post.user} className="h-10 w-10 rounded-full object-cover border border-border" />
+                  <ImageWithFallback src={post.avatar} alt={post.user} className="h-10 w-10 rounded-full object-cover border border-border" />
                   <div>
                     <h3 className="text-sm font-medium text-foreground">{post.user}</h3>
                     <p className="text-xs text-muted-foreground">{post.timeAgo}</p>
@@ -216,7 +218,7 @@ export default function CommunityPage() {
               <p className="text-muted-foreground text-sm mb-4 line-clamp-2">{post.description}</p>
               
               <Link href={`/shared/trip/${post.id}`} className="block h-48 sm:h-64 w-full rounded-xl overflow-hidden mb-4 group">
-                <img src={post.image} alt="Trip preview" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
+                <ImageWithFallback src={post.image} alt="Trip preview" className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-500" />
               </Link>
 
               <Link href={`/shared/trip/${post.id}`} className="inline-flex items-center text-sm font-medium text-primary-600 hover:text-primary-500 transition-colors mb-4">
@@ -274,8 +276,8 @@ export default function CommunityPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Image URL</label>
-                <Input value={postImage} onChange={(e) => setPostImage(e.target.value)} placeholder="https://..." />
+                <label className="text-sm font-medium text-foreground">Image</label>
+                <ImageUpload value={postImage} onChange={setPostImage} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Trip</label>
