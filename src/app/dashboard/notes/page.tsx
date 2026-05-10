@@ -33,11 +33,14 @@ export default function NotesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [saveError, setSaveError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [selectedTripId, setSelectedTripId] = useState<string>("all");
 
   const fetchNotesAndTrips = async () => {
     try {
       const [notesRes, tripsRes] = await Promise.all([
-        fetch('/api/notes'),
+        fetch(`/api/notes${selectedTripId !== 'all' ? `?tripId=${selectedTripId}` : ''}`),
         fetch('/api/trips')
       ]);
       const notesData = await notesRes.json();
@@ -61,7 +64,7 @@ export default function NotesPage() {
 
   useEffect(() => {
     fetchNotesAndTrips();
-  }, []);
+  }, [selectedTripId]);
 
   const filteredNotes = useMemo(() => {
     return notes
@@ -122,6 +125,7 @@ export default function NotesPage() {
     let succeeded = false;
 
     try {
+      setIsSubmitting(true);
       if (editingNote) {
         const res = await fetch('/api/notes', {
           method: 'PUT',
@@ -157,6 +161,8 @@ export default function NotesPage() {
       }
     } catch {
       setSaveError('Failed to save note');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -191,10 +197,14 @@ export default function NotesPage() {
 
       <div className="flex flex-col lg:flex-row items-center gap-3 w-full bg-card p-4 rounded-xl border border-border">
         <div className="w-full lg:w-64">
-          <select className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-            <option>All Trips</option>
+          <select 
+            value={selectedTripId}
+            onChange={(e) => setSelectedTripId(e.target.value)}
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            <option value="all">All Trips</option>
             {trips.map((trip) => (
-              <option key={trip.id}>Trip: {trip.title}</option>
+              <option key={trip.id} value={trip.id}>Trip: {trip.title}</option>
             ))}
           </select>
         </div>
@@ -322,7 +332,7 @@ export default function NotesPage() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Trip</label>
-                <select name="tripId" defaultValue={editingNote?.trip_id?.toString() || (trips.length > 0 ? trips[0].id.toString() : '')} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <select name="tripId" defaultValue={editingNote?.trip_id?.toString() || (selectedTripId !== 'all' ? selectedTripId : (trips.length > 0 ? trips[0].id.toString() : ''))} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                   {trips.map((trip) => (
                     <option key={trip.id} value={trip.id}>{trip.title}</option>
                   ))}
@@ -343,10 +353,10 @@ export default function NotesPage() {
                 </div>
               </div>
               <div className="flex justify-end space-x-3 pt-4">
-                <Button type="button" variant="outline" onClick={() => { setIsModalOpen(false); setEditingNote(null); }}>
+                <Button type="button" variant="outline" onClick={() => { setIsModalOpen(false); setEditingNote(null); }} disabled={isSubmitting}>
                   Cancel
                 </Button>
-                <Button type="submit">{editingNote ? 'Save Changes' : 'Add Note'}</Button>
+                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : editingNote ? 'Save Changes' : 'Add Note'}</Button>
               </div>
             </form>
           </div>

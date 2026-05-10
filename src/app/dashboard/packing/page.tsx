@@ -19,30 +19,43 @@ export default function PackingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [trips, setTrips] = useState<any[]>([]);
+  const [selectedTripId, setSelectedTripId] = useState<string>("all");
+
   useEffect(() => {
-    const fetchItems = async () => {
+    const loadData = async () => {
       try {
-        const res = await fetch("/api/packing");
-        const data = await res.json();
-        if (data.success) {
-          setItems(data.items);
+        const [tripsRes, itemsRes] = await Promise.all([
+          fetch('/api/trips'),
+          fetch(`/api/packing${selectedTripId !== 'all' ? `?tripId=${selectedTripId}` : ''}`)
+        ]);
+        
+        const tripsData = await tripsRes.json();
+        const itemsData = await itemsRes.json();
+        
+        if (tripsData.success) {
+          setTrips(tripsData.trips);
+        }
+        
+        if (itemsData.success) {
+          setItems(itemsData.items);
           
           // Extract unique categories
-          const uniqueCats = Array.from(new Set(data.items.map((i: Item) => i.category)));
+          const uniqueCats = Array.from(new Set(itemsData.items.map((i: Item) => i.category)));
           const baseCats = ["All", "Essentials", "Electronics", "Clothing", "Toiletries"];
           const combinedCats = Array.from(new Set([...baseCats, ...uniqueCats])) as string[];
           setCategories(combinedCats);
         } else {
-          toast.error(data.error || "Failed to load packing items");
+          toast.error(itemsData.error || "Failed to load packing items");
         }
       } catch (error) {
-        toast.error("Failed to load packing items");
+        toast.error("Failed to load data");
       } finally {
         setIsLoading(false);
       }
     };
-    fetchItems();
-  }, []);
+    loadData();
+  }, [selectedTripId]);
 
   const [newItemText, setNewItemText] = useState("");
   const [newItemCategory, setNewItemCategory] = useState("Essentials");
@@ -103,7 +116,11 @@ export default function PackingPage() {
       const res = await fetch('/api/packing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newItemText, category: newItemCategory })
+        body: JSON.stringify({ 
+          name: newItemText, 
+          category: newItemCategory,
+          trip_id: selectedTripId === 'all' ? undefined : selectedTripId
+        })
       });
       const data = await res.json();
       
@@ -130,8 +147,20 @@ export default function PackingPage() {
     <div className="max-w-4xl mx-auto space-y-8 pb-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Packing List</h1>
-          <p className="mt-1 text-muted-foreground">Don&apos;t forget the essentials for your next trip.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center space-x-4">
+            <span>Packing List</span>
+            <select 
+              value={selectedTripId}
+              onChange={(e) => setSelectedTripId(e.target.value)}
+              className="text-sm font-medium border border-border rounded-lg px-3 py-1.5 bg-background shadow-sm"
+            >
+              <option value="all">All Trips</option>
+              {trips.map(t => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
+          </h1>
+          <p className="mt-1 text-muted-foreground">Don&apos;t forget the essentials for {selectedTripId === 'all' ? 'your trips' : 'this trip'}.</p>
         </div>
       </div>
 

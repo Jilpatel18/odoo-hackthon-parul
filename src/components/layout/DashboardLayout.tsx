@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   User,
-  CheckSquare
+  CheckSquare,
+  Plane
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
@@ -67,7 +68,12 @@ export function DashboardLayout({ children, currentUser }: { children: React.Rea
         <div className="fixed inset-0 bg-black/80" onClick={() => setSidebarOpen(false)} />
         <div className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border p-6 flex flex-col">
           <div className="flex items-center justify-between mb-8">
-            <span className="text-xl font-bold tracking-tight text-foreground">Traveloop</span>
+            <div className="flex items-center space-x-2">
+              <div className="h-8 w-8 bg-gradient-to-tr from-primary-600 to-primary-400 rounded-xl flex items-center justify-center shadow-md shadow-primary-500/20">
+                <Plane className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Traveloop</span>
+            </div>
             <button onClick={() => setSidebarOpen(false)}>
               <X className="h-6 w-6 text-muted-foreground" />
             </button>
@@ -106,8 +112,11 @@ export function DashboardLayout({ children, currentUser }: { children: React.Rea
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col lg:border-r lg:border-border lg:bg-card">
-        <div className="flex h-16 items-center px-6">
-          <span className="text-xl font-bold tracking-tight text-foreground">Traveloop</span>
+        <div className="flex h-16 items-center px-6 space-x-2">
+          <div className="h-8 w-8 bg-gradient-to-tr from-primary-600 to-primary-400 rounded-xl flex items-center justify-center shadow-md shadow-primary-500/20">
+            <Plane className="h-5 w-5 text-white" />
+          </div>
+          <span className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">Traveloop</span>
         </div>
         <div className="flex flex-1 flex-col overflow-y-auto pt-6 px-4">
           <nav className="flex-1 space-y-1.5">

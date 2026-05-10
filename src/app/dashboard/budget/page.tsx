@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { Plus, Download, Receipt, ArrowUpRight, ArrowDownRight, X } from "lucide-react";
+import { Plus, Download, Receipt, ArrowUpRight, ArrowDownRight, X, Edit2, Check } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
@@ -44,24 +44,39 @@ export default function BudgetPage() {
   const [newAmount, setNewAmount] = useState("");
   const [newCategory, setNewCategory] = useState("Food");
 
+  const [trips, setTrips] = useState<any[]>([]);
+  const [selectedTripId, setSelectedTripId] = useState<string>("all");
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [editBudgetAmount, setEditBudgetAmount] = useState("");
+  const [isUpdatingBudget, setIsUpdatingBudget] = useState(false);
+
   useEffect(() => {
-    const fetchExpenses = async () => {
+    const loadData = async () => {
       try {
-        const res = await fetch('/api/budget');
-        const data = await res.json();
-        if (data.success) {
-          setExpensesList(data.expenses.map((e: any) => ({ ...e, amount: parseFloat(e.amount) })));
+        const [tripsRes, expRes] = await Promise.all([
+          fetch('/api/trips'),
+          fetch(`/api/budget${selectedTripId !== 'all' ? `?tripId=${selectedTripId}` : ''}`)
+        ]);
+        
+        const tripsData = await tripsRes.json();
+        const expData = await expRes.json();
+        
+        if (tripsData.success) {
+          setTrips(tripsData.trips);
+        }
+        if (expData.success) {
+          setExpensesList(expData.expenses.map((e: any) => ({ ...e, amount: parseFloat(e.amount) })));
         } else {
-          toast.error(data.error || 'Failed to load expenses');
+          toast.error(expData.error || 'Failed to load expenses');
         }
       } catch (error) {
-        toast.error('Failed to load expenses');
+        toast.error('Failed to load data');
       } finally {
         setIsLoading(false);
       }
     };
-    fetchExpenses();
-  }, []);
+    loadData();
+  }, [selectedTripId]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,6 +88,7 @@ export default function BudgetPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          trip_id: selectedTripId === 'all' ? undefined : selectedTripId,
           title: newTitle,
           category: newCategory,
           amount: parseFloat(newAmount),
@@ -119,17 +135,55 @@ export default function BudgetPage() {
     }
   };
 
+  const handleUpdateBudget = async () => {
+    if (selectedTripId === 'all') return;
+    setIsUpdatingBudget(true);
+    try {
+      const res = await fetch(`/api/trips/${selectedTripId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ budget: parseFloat(editBudgetAmount) })
+      });
+      if (res.ok) {
+        setTrips(trips.map(t => t.id === parseInt(selectedTripId) ? { ...t, budget: parseFloat(editBudgetAmount) } : t));
+        setIsEditingBudget(false);
+        toast.success("Budget updated!");
+      } else {
+        toast.error("Failed to update budget");
+      }
+    } catch {
+      toast.error("Failed to update budget");
+    } finally {
+      setIsUpdatingBudget(false);
+    }
+  };
+
   const totalSpent = expensesList.reduce((sum, item) => sum + item.amount, 0);
-  const totalBudget = 5000;
+  const selectedTrip = trips.find(t => t.id === parseInt(selectedTripId));
+  const totalBudget = selectedTripId === 'all' 
+    ? trips.reduce((sum, t) => sum + (parseFloat(t.budget) || 5000), 0)
+    : (selectedTrip ? (parseFloat(selectedTrip.budget) || 5000) : 5000);
   const remainingBudget = totalBudget - totalSpent;
-  const budgetPercentage = Math.min(Math.round((totalSpent / totalBudget) * 100), 100);
+  const budgetPercentage = totalBudget === 0 ? 0 : Math.min(Math.round((totalSpent / totalBudget) * 100), 100);
 
   return (
     <div className="space-y-8 pb-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Budget & Expenses</h1>
-          <p className="mt-1 text-muted-foreground">Track your spending across all your adventures.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center space-x-4">
+            <span>Budget & Expenses</span>
+            <select 
+              value={selectedTripId}
+              onChange={(e) => setSelectedTripId(e.target.value)}
+              className="text-sm font-medium border border-border rounded-lg px-3 py-1.5 bg-background shadow-sm"
+            >
+              <option value="all">All Trips</option>
+              {trips.map(t => (
+                <option key={t.id} value={t.id}>{t.title}</option>
+              ))}
+            </select>
+          </h1>
+          <p className="mt-1 text-muted-foreground">Track your spending across {selectedTripId === 'all' ? 'all your adventures' : 'this trip'}.</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="hidden sm:flex" onClick={handleExport}>
@@ -151,8 +205,41 @@ export default function BudgetPage() {
               <p className="text-sm font-medium text-muted-foreground">Total Budget</p>
               <WalletIcon className="h-4 w-4 text-primary-500" />
             </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-foreground">{formatCurrency(totalBudget)}</p>
+            <div className="mt-2 flex items-baseline justify-between gap-2">
+              {isEditingBudget ? (
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="number" 
+                    value={editBudgetAmount} 
+                    onChange={(e) => setEditBudgetAmount(e.target.value)} 
+                    className="w-24 h-8"
+                    placeholder="5000"
+                  />
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={handleUpdateBudget} disabled={isUpdatingBudget}>
+                    <Check className="h-4 w-4 text-emerald-500" />
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setIsEditingBudget(false)}>
+                    <X className="h-4 w-4 text-red-500" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group">
+                  <p className="text-3xl font-bold text-foreground">{formatCurrency(totalBudget)}</p>
+                  {selectedTripId !== 'all' && (
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity" 
+                      onClick={() => {
+                        setEditBudgetAmount(totalBudget.toString());
+                        setIsEditingBudget(true);
+                      }}
+                    >
+                      <Edit2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

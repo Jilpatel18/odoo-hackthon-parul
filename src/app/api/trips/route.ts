@@ -12,7 +12,7 @@ export async function GET() {
     const result = await query(
       `SELECT id, title, description, cover_image as image, 
               TO_CHAR(start_date, 'Mon DD') || ' - ' || TO_CHAR(end_date, 'Mon DD, YYYY') as date,
-              start_date, end_date,
+              start_date, end_date, budget,
               CASE 
                 WHEN end_date < CURRENT_DATE THEN 'Completed'
                 WHEN start_date > CURRENT_DATE THEN 'Upcoming'

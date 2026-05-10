@@ -22,6 +22,8 @@ export default function AdminDestinationsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [destinationToDelete, setDestinationToDelete] = useState<Destination | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const loadDestinations = async () => {
@@ -102,22 +104,26 @@ export default function AdminDestinationsPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this destination?")) return;
+  const confirmDelete = async () => {
+    if (!destinationToDelete) return;
+    setIsDeleting(true);
 
     try {
-      const res = await fetch(`/api/admin/destinations/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/destinations/${destinationToDelete.id}`, { method: "DELETE" });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to delete destination");
       }
 
-      setDestinations((current) => current.filter((dest) => dest.id !== id));
+      setDestinations((current) => current.filter((dest) => dest.id !== destinationToDelete.id));
       toast.success("Destination deleted successfully!");
     } catch (error) {
       console.error(error);
       toast.error("Failed to delete destination.");
+    } finally {
+      setIsDeleting(false);
+      setDestinationToDelete(null);
     }
   };
 
@@ -182,7 +188,7 @@ export default function AdminDestinationsPage() {
                       <Button variant="ghost" size="icon" className="h-8 w-8 mr-2" onClick={() => { setEditingDestination(dest); setIsAddModalOpen(true); }}>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600" onClick={() => handleDelete(dest.id)}>
+                      <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600" onClick={() => setDestinationToDelete(dest)}>
                         Delete
                       </Button>
                     </td>
@@ -223,6 +229,22 @@ export default function AdminDestinationsPage() {
                 <Button type="submit">{editingDestination ? "Save Changes" : "Add Destination"}</Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {destinationToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border border-border p-6 text-center">
+            <h2 className="text-xl font-bold mb-2">Delete Destination?</h2>
+            <p className="text-muted-foreground mb-6">Are you sure you want to delete <strong>{destinationToDelete.name}</strong>? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setDestinationToDelete(null)} disabled={isDeleting}>Cancel</Button>
+              <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Search, MoreHorizontal } from "lucide-react";
+import { Search, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +21,12 @@ export default function AdminUsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [usersState, setUsersState] = useState<UserItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [userToDelete, setUserToDelete] = useState<UserItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const [userToEdit, setUserToEdit] = useState<UserItem | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -52,14 +58,21 @@ export default function AdminUsersPage() {
     [usersState, searchQuery]
   );
 
-  const toggleUserStatus = async (user: UserItem) => {
-    const nextStatus = user.status === "Active" ? "Inactive" : "Active";
+  const handleEditUser = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!userToEdit) return;
+    setIsEditing(true);
+
+    const formData = new FormData(e.currentTarget);
+    const name = String(formData.get("name"));
+    const email = String(formData.get("email"));
+    const status = String(formData.get("status"));
 
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await fetch(`/api/admin/users/${userToEdit.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: nextStatus }),
+        body: JSON.stringify({ name, email, status }),
       });
 
       const data = await res.json();
@@ -68,31 +81,38 @@ export default function AdminUsersPage() {
       }
 
       setUsersState((current) => current.map((item) => (
-        item.id === user.id ? { ...item, status: nextStatus } : item
+        item.id === userToEdit.id ? { ...item, name, email, status: status as "Active" | "Inactive" } : item
       )));
-      toast.success("User status updated.");
+      toast.success("User updated successfully.");
+      setUserToEdit(null);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to update user status.");
+      toast.error("Failed to update user.");
+    } finally {
+      setIsEditing(false);
     }
   };
 
-  const deleteUser = async (id: number) => {
-    if (!confirm("Delete this user?")) return;
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
 
     try {
-      const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/users/${userToDelete.id}`, { method: "DELETE" });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to delete user");
       }
 
-      setUsersState((current) => current.filter((user) => user.id !== id));
+      setUsersState((current) => current.filter((user) => user.id !== userToDelete.id));
       toast.success("User deleted.");
     } catch (error) {
       console.error(error);
       toast.error("Failed to delete user.");
+    } finally {
+      setIsDeleting(false);
+      setUserToDelete(null);
     }
   };
 
@@ -160,11 +180,11 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4 text-muted-foreground">{user.trips}</td>
                     <td className="px-6 py-4 text-muted-foreground">{user.joined}</td>
                     <td className="px-6 py-4 text-right">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 mr-2" onClick={() => toggleUserStatus(user)}>
-                        <MoreHorizontal className="h-4 w-4" />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 mr-2 text-muted-foreground hover:text-primary-600" onClick={() => setUserToEdit(user)}>
+                        <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-8 text-red-500 hover:text-red-600" onClick={() => deleteUser(user.id)}>
-                        Delete
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-red-600" onClick={() => setUserToDelete(user)}>
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </td>
                   </tr>
@@ -174,6 +194,56 @@ export default function AdminUsersPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit User Modal */}
+      {userToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border border-border overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-muted/30 px-6 py-4 border-b border-border">
+              <h2 className="text-xl font-bold text-foreground">Edit User</h2>
+            </div>
+            <form onSubmit={handleEditUser} className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Full Name</label>
+                <Input name="name" defaultValue={userToEdit.name} required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Email Address</label>
+                <Input name="email" type="email" defaultValue={userToEdit.email} required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Account Status</label>
+                <select name="status" defaultValue={userToEdit.status} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={() => setUserToEdit(null)} disabled={isEditing}>Cancel</Button>
+                <Button type="submit" disabled={isEditing}>
+                  {isEditing ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <div className="bg-card w-full max-w-md rounded-2xl shadow-xl border border-border p-6 text-center">
+            <h2 className="text-xl font-bold mb-2">Delete User?</h2>
+            <p className="text-muted-foreground mb-6">Are you sure you want to delete <strong>{userToDelete.name}</strong>? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setUserToDelete(null)} disabled={isDeleting}>Cancel</Button>
+              <Button variant="destructive" onClick={confirmDeleteUser} disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Delete User"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

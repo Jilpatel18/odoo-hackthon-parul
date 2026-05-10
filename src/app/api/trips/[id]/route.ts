@@ -21,7 +21,8 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
                 WHEN end_date < CURRENT_DATE THEN 'Completed'
                 WHEN start_date > CURRENT_DATE THEN 'Upcoming'
                 ELSE 'Active'
-              END as status
+              END as status,
+              budget
        FROM trips WHERE id = $1 AND user_id = $2`,
       [tripId, session.userId]
     );
@@ -92,5 +93,35 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
   } catch (error) {
     console.error('Delete trip error:', error);
     return NextResponse.json({ success: false, error: 'Failed to delete trip' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const session = await getSessionUser();
+  if (!session?.userId) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const tripId = params.id;
+
+  try {
+    const body = await request.json();
+    const { budget } = body;
+
+    if (budget !== undefined) {
+      const result = await query(
+        `UPDATE trips SET budget = $1 WHERE id = $2 AND user_id = $3 RETURNING id`,
+        [budget, tripId, session.userId]
+      );
+      if (result.rows.length === 0) {
+        return NextResponse.json({ success: false, error: 'Trip not found or unauthorized' }, { status: 404 });
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Update trip error:', error);
+    return NextResponse.json({ success: false, error: 'Failed to update trip' }, { status: 500 });
   }
 }

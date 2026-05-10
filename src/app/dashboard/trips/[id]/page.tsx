@@ -2,8 +2,10 @@
 
 import { useState, useEffect, use } from "react";
 import { motion } from "framer-motion";
-import { Calendar, MapPin, Clock, Plus, MoreHorizontal, CheckCircle2, Circle } from "lucide-react";
+import { Calendar, MapPin, Clock, Plus, MoreHorizontal, CheckCircle2, Circle, Share2, Edit, Layers, ArrowDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/Card";
 import toast from "react-hot-toast";
 import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
@@ -58,6 +60,84 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
     fetchTripDetails();
   }, [params.id]);
 
+  const handleStopUpdate = (dayIndex: number, stopIndex: number, field: string, value: string) => {
+    const updatedItinerary = [...itinerary];
+    updatedItinerary[dayIndex].stops[stopIndex] = {
+      ...updatedItinerary[dayIndex].stops[stopIndex],
+      [field]: value
+    };
+    setItinerary(updatedItinerary);
+  };
+
+  const handleStopSave = async (stop: any, dayDate: string) => {
+    if (!stop.title) return; // Don't save empty titles
+    
+    try {
+      const isNew = typeof stop.id === 'number' && stop.id < 0;
+      
+      const payload = {
+        id: isNew ? undefined : stop.id,
+        title: stop.title,
+        description: stop.location || '',
+        start_time: new Date(dayDate).toISOString(), // Mocking time for now based on day date
+        estimated_cost: parseFloat(stop.type) || 0
+      };
+
+      const res = await fetch(`/api/trips/${params.id}/itinerary`, {
+        method: isNew ? 'POST' : 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await res.json();
+      if (!data.success) {
+        toast.error("Failed to save activity");
+      } else if (isNew && data.item) {
+        // Update local ID if it was a new item
+        setItinerary(current => {
+          const updated = [...current];
+          for (let d of updated) {
+            for (let s of d.stops) {
+              if (s.id === stop.id) {
+                s.id = data.item.id;
+              }
+            }
+          }
+          return updated;
+        });
+      }
+    } catch {
+      toast.error("Failed to save activity");
+    }
+  };
+
+  const handleAddStop = (dayIndex: number) => {
+    const updatedItinerary = [...itinerary];
+    updatedItinerary[dayIndex].stops.push({
+      id: -Date.now(), // Temporary negative ID
+      time: "09:00 AM",
+      title: "",
+      location: "",
+      type: ""
+    });
+    setItinerary(updatedItinerary);
+  };
+
+  const handleDeleteStop = async (dayIndex: number, stopIndex: number, stopId: number | string) => {
+    const updatedItinerary = [...itinerary];
+    updatedItinerary[dayIndex].stops.splice(stopIndex, 1);
+    setItinerary(updatedItinerary);
+
+    if (typeof stopId !== 'number' || stopId > 0) {
+      try {
+        await fetch(`/api/trips/${params.id}/itinerary?itemId=${stopId}`, { method: 'DELETE' });
+        toast.success("Activity deleted");
+      } catch {
+        toast.error("Failed to delete activity from server");
+      }
+    }
+  };
+
   if (isLoading) {
     return <div className="p-8 text-center text-muted-foreground">Loading trip...</div>;
   }
@@ -94,12 +174,25 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
             </div>
           </div>
           <div className="flex space-x-3">
-            <Button variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20 backdrop-blur-md">
-              Share
+            <Button 
+              variant="outline" 
+              className="bg-white/10 text-white border-white/20 hover:bg-white/20 backdrop-blur-md"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(window.location.href);
+                  toast.success("Link copied to clipboard!");
+                } catch {
+                  toast.error("Failed to copy link");
+                }
+              }}
+            >
+              <Share2 className="mr-2 h-4 w-4" /> Share
             </Button>
-            <Button className="bg-primary-600 text-white hover:bg-primary-700">
-              Edit Trip
-            </Button>
+            <Link href="/dashboard/trips">
+              <Button className="bg-primary-600 text-white hover:bg-primary-700">
+                <Edit className="mr-2 h-4 w-4" /> Manage Trips
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
@@ -129,8 +222,12 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
       {activeTab === "itinerary" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-4">
           
-          {/* Timeline */}
-          <div className="lg:col-span-2 space-y-8">
+          {/* Timeline Builder */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xl font-bold">Itinerary for a selected place</h2>
+            </div>
+            
             {itinerary.length === 0 ? (
               <div className="py-12 text-center border-2 border-dashed border-border rounded-xl">
                 <p className="text-muted-foreground mb-4">No itinerary items yet.</p>
@@ -140,62 +237,67 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
               </div>
             ) : (
               itinerary.map((day, dayIndex) => (
-                <div key={dayIndex} className="relative">
-                  <div className="sticky top-16 z-10 bg-background/90 backdrop-blur-md py-3 font-bold text-lg text-foreground border-b border-border mb-6 flex justify-between items-center">
-                    {day.date}
-                    <Button variant="ghost" size="sm" className="text-primary-600">
-                      <Plus className="h-4 w-4 mr-1" /> Add Stop
-                    </Button>
+                <div key={dayIndex} className="border border-border rounded-xl bg-card overflow-hidden">
+                  <div className="bg-muted/30 px-6 py-4 border-b border-border flex justify-between items-center">
+                    <h3 className="font-bold text-foreground border border-border px-3 py-1 rounded-md bg-background shadow-sm">Day {dayIndex + 1}</h3>
+                    <span className="text-sm font-medium text-muted-foreground">{day.date}</span>
                   </div>
                   
-                  <div className="space-y-4">
-                    {day.stops.map((stop, stopIndex) => (
-                      <motion.div 
-                        key={stop.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: stopIndex * 0.1 }}
-                        className="flex gap-4 relative group"
-                      >
-                        {/* Timeline Line */}
-                        <div className="flex flex-col items-center">
-                          <div className="h-4 w-4 rounded-full border-2 border-primary-500 bg-background mt-1 z-10"></div>
-                          {stopIndex !== day.stops.length - 1 && (
-                            <div className="w-0.5 h-full bg-border -my-1 absolute top-5 bottom-[-1rem] left-[7px]"></div>
+                  <div className="p-6">
+                    {day.stops.length > 0 && (
+                      <div className="flex text-xs uppercase tracking-wider font-semibold text-muted-foreground mb-4 px-2">
+                        <div className="flex-1">Physical Activity</div>
+                        <div className="w-24 sm:w-32 text-right pr-8 sm:pr-12">Expense</div>
+                      </div>
+                    )}
+                    
+                    <div className="space-y-2 relative">
+                      {day.stops.map((stop, stopIndex) => (
+                        <div key={stop.id}>
+                          <div className="flex items-center gap-3">
+                            <Input 
+                              value={stop.title} 
+                              onChange={(e) => handleStopUpdate(dayIndex, stopIndex, 'title', e.target.value)}
+                              onBlur={() => handleStopSave(stop, day.date)}
+                              placeholder="e.g. Visit Colosseum"
+                              className="flex-1 bg-background"
+                            />
+                            <Input 
+                              value={stop.type} 
+                              onChange={(e) => handleStopUpdate(dayIndex, stopIndex, 'type', e.target.value)}
+                              onBlur={() => handleStopSave(stop, day.date)}
+                              placeholder="$0"
+                              className="w-24 sm:w-32 bg-background text-right font-medium"
+                            />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="text-muted-foreground hover:text-red-500 hover:bg-red-50 shrink-0 h-10 w-10" 
+                              onClick={() => handleDeleteStop(dayIndex, stopIndex, stop.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          {stopIndex < day.stops.length - 1 && (
+                            <div className="flex justify-center my-3 text-muted-foreground/30">
+                              <ArrowDown className="h-5 w-5" />
+                            </div>
                           )}
                         </div>
-                        
-                        {/* Content Card */}
-                        <Card className="flex-1 hover:border-primary-200 transition-colors cursor-pointer shadow-none">
-                          <CardContent className="p-4 flex sm:items-center flex-col sm:flex-row gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-1">
-                                <Clock className="h-3.5 w-3.5" />
-                                <span>{stop.time}</span>
-                              </div>
-                              <h4 className="font-semibold text-foreground text-lg">{stop.title}</h4>
-                              <div className="flex items-center text-sm text-muted-foreground mt-1">
-                                <MapPin className="h-3.5 w-3.5 mr-1" />
-                                {stop.location}
-                              </div>
-                            </div>
-                            <div>
-                              <Button variant="ghost" size="icon" className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                                <MoreHorizontal className="h-5 w-5" />
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
+                      ))}
+                    </div>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full mt-6 border-dashed text-muted-foreground hover:text-foreground" 
+                      onClick={() => handleAddStop(dayIndex)}
+                    >
+                      <Plus className="mr-2 h-4 w-4" /> Add Activity
+                    </Button>
                   </div>
                 </div>
               ))
             )}
-            
-            <Button variant="outline" className="w-full border-dashed">
-              <Plus className="mr-2 h-4 w-4" /> Add Day
-            </Button>
           </div>
 
           {/* Sidebar Widgets */}
@@ -206,15 +308,17 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center py-2 border-b border-border">
                     <span className="text-muted-foreground">Duration</span>
-                    <span className="font-medium">13 Days</span>
+                    <span className="font-medium">{itinerary.length} Days</span>
                   </div>
                   <div className="flex justify-between items-center py-2 border-b border-border">
                     <span className="text-muted-foreground">Stops</span>
-                    <span className="font-medium">14 Planned</span>
+                    <span className="font-medium">{itinerary.reduce((acc, day) => acc + day.stops.length, 0)} Planned</span>
                   </div>
                   <div className="flex justify-between items-center py-2">
                     <span className="text-muted-foreground">Est. Budget</span>
-                    <span className="font-medium">₹2,400.00</span>
+                    <span className="font-medium text-primary-600 font-bold">
+                      ₹{itinerary.reduce((acc, day) => acc + day.stops.reduce((acc2, stop) => acc2 + (parseFloat(stop.type) || 0), 0), 0).toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -226,15 +330,15 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
                 <div className="space-y-3">
                   <div className="flex items-start space-x-3">
                     <CheckCircle2 className="h-5 w-5 text-primary-500 mt-0.5" />
-                    <span className="text-sm line-through text-muted-foreground">Book flights to KIX</span>
+                    <span className="text-sm line-through text-muted-foreground">Book flights</span>
                   </div>
                   <div className="flex items-start space-x-3">
                     <CheckCircle2 className="h-5 w-5 text-primary-500 mt-0.5" />
-                    <span className="text-sm line-through text-muted-foreground">Reserve Kyoto Hotel</span>
+                    <span className="text-sm line-through text-muted-foreground">Reserve Hotel</span>
                   </div>
                   <div className="flex items-start space-x-3 cursor-pointer group">
                     <Circle className="h-5 w-5 text-muted-foreground group-hover:text-primary-500 mt-0.5 transition-colors" />
-                    <span className="text-sm text-foreground">Buy JR Pass</span>
+                    <span className="text-sm text-foreground">Buy Passes</span>
                   </div>
                 </div>
               </CardContent>
@@ -245,8 +349,12 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
       
       {activeTab !== "itinerary" && (
         <div className="py-12 text-center border-2 border-dashed border-border rounded-xl mt-4">
-          <h3 className="text-lg font-medium text-foreground mb-2">Coming Soon</h3>
-          <p className="text-muted-foreground">This section is currently under development.</p>
+          <Layers className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium text-foreground mb-2">Manage {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h3>
+          <p className="text-muted-foreground mb-6">Manage all your {activeTab} details directly from the dashboard tool.</p>
+          <Link href={`/dashboard/${activeTab}`}>
+            <Button>Go to {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Dashboard</Button>
+          </Link>
         </div>
       )}
     </div>

@@ -33,6 +33,7 @@ export async function GET() {
          p.tags,
          p.created_at,
          COALESCE(l.like_count, 0)::int AS likes,
+         COALESCE(c.comment_count, 0)::int AS comments,
          EXISTS (
            SELECT 1
            FROM community_post_likes cpl
@@ -50,6 +51,11 @@ export async function GET() {
          FROM community_post_likes
          GROUP BY post_id
        ) l ON l.post_id = p.id
+       LEFT JOIN (
+         SELECT post_id, COUNT(*) AS comment_count
+         FROM community_post_comments
+         GROUP BY post_id
+       ) c ON c.post_id = p.id
        ORDER BY p.created_at DESC`,
       [session.userId]
     );
@@ -64,7 +70,7 @@ export async function GET() {
       image: row.image_url || "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=600&auto=format&fit=crop",
       tags: Array.isArray(row.tags) ? row.tags : [],
       likes: row.likes,
-      comments: 0,
+      comments: row.comments,
       likedByMe: row.liked_by_me,
       isFollowing: row.is_following,
       timeAgo: timeAgo(row.created_at),

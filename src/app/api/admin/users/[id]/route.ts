@@ -15,11 +15,21 @@ export async function PUT(request: Request, { params }: Params) {
   try {
     const body = await request.json();
     const status = body.status === "Inactive" ? "Inactive" : "Active";
+    const name = body.name || undefined;
+    const email = body.email || undefined;
 
-    const result = await query(
-      "UPDATE users SET status = $1 WHERE id = $2 RETURNING id, name, email, status",
-      [status, Number(id)]
-    );
+    let result;
+    if (name && email) {
+      result = await query(
+        "UPDATE users SET name = $1, email = $2, status = $3 WHERE id = $4 RETURNING id, name, email, status",
+        [name, email, status, Number(id)]
+      );
+    } else {
+      result = await query(
+        "UPDATE users SET status = $1 WHERE id = $2 RETURNING id, name, email, status",
+        [status, Number(id)]
+      );
+    }
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });

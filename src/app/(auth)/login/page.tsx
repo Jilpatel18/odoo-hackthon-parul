@@ -150,6 +150,34 @@ export default function LoginPage() {
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
+
+          <div className="mt-8 pt-6 border-t border-border">
+            <p className="text-sm text-center text-muted-foreground font-medium mb-4">Quick Demo Login</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full text-xs sm:text-sm"
+                onClick={() => {
+                  setEmail("demo@example.com");
+                  setPassword("password123");
+                }}
+              >
+                Demo User
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full text-xs sm:text-sm border-primary-200 hover:bg-primary-50 hover:text-primary-700"
+                onClick={() => {
+                  setEmail("admin@example.com");
+                  setPassword("admin123");
+                }}
+              >
+                Demo Admin
+              </Button>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>

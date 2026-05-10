@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Filter, ArrowUpDown, Layers, Heart, MessageSquare, Share2, MapPin, Plus } from "lucide-react";
+import { Search, Filter, ArrowUpDown, Layers, Heart, MessageSquare, Share2, MapPin, Plus, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -27,6 +27,14 @@ type CommunityPost = {
   timeAgo: string;
 };
 
+type PostComment = {
+  id: number;
+  content: string;
+  user: string;
+  avatar: string;
+  timeAgo: string;
+};
+
 export default function CommunityPage() {
   const currentUser = useDashboardUser();
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,6 +45,14 @@ export default function CommunityPage() {
   const [postImage, setPostImage] = useState("");
   const [postTripId, setPostTripId] = useState("1");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Comments state
+  const [commentsOpenPostId, setCommentsOpenPostId] = useState<number | null>(null);
+  const [comments, setComments] = useState<PostComment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   useEffect(() => {
     const loadPosts = async () => {
@@ -105,18 +121,64 @@ export default function CommunityPage() {
     }
   };
 
-  const handleComment = () => {
-    toast.success("Comment composer opened.");
+  const handleComment = async (postId: number) => {
+    setCommentsOpenPostId(postId);
+    setIsLoadingComments(true);
+    setComments([]);
+    try {
+      const res = await fetch(`/api/community/posts/${postId}/comments`);
+      const data = await res.json();
+      if (data.success) {
+        setComments(data.comments);
+      }
+    } catch (error) {
+      toast.error("Failed to load comments.");
+    } finally {
+      setIsLoadingComments(false);
+    }
   };
 
-  const handleShare = () => {
-    toast.success("Share link copied.");
+  const submitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentsOpenPostId || !newComment.trim()) return;
+
+    try {
+      setIsSubmittingComment(true);
+      const res = await fetch(`/api/community/posts/${commentsOpenPostId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newComment }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error);
+
+      setComments([...comments, data.comment]);
+      setNewComment("");
+      
+      // Update post comment count locally
+      setPosts(current => current.map(p => p.id === commentsOpenPostId ? { ...p, comments: p.comments + 1 } : p));
+      toast.success("Comment posted!");
+    } catch (error) {
+      toast.error("Failed to post comment.");
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const handleShare = async (post: CommunityPost) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/shared/trip/${post.id}`);
+      toast.success("Link copied to clipboard!");
+    } catch (e) {
+      toast.error("Failed to copy link");
+    }
   };
 
   const handleCreatePost = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     try {
+      setIsSubmitting(true);
       const res = await fetch("/api/community/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -142,6 +204,8 @@ export default function CommunityPage() {
     } catch (error) {
       console.error(error);
       toast.error("Failed to create post.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -239,12 +303,12 @@ export default function CommunityPage() {
                   <Heart className="h-4 w-4" />
                   <span>{post.likes}</span>
                 </button>
-                <button onClick={handleComment} className="flex items-center space-x-1.5 text-sm text-muted-foreground hover:text-blue-500 transition-colors">
+                <button onClick={() => handleComment(post.id)} className="flex items-center space-x-1.5 text-sm text-muted-foreground hover:text-blue-500 transition-colors">
                   <MessageSquare className="h-4 w-4" />
                   <span>{post.comments}</span>
                 </button>
               </div>
-              <Button variant="ghost" size="sm" onClick={handleShare}>
+              <Button variant="ghost" size="sm" onClick={() => handleShare(post)}>
                 <Share2 className="h-4 w-4 mr-2" /> Share
               </Button>
             </CardFooter>
@@ -287,11 +351,61 @@ export default function CommunityPage() {
                   <option value="3">Rome Weekend</option>
                 </select>
               </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-                <Button type="submit">Post Trip</Button>
+              <div className="flex justify-end gap-3 pt-2 border-t border-border mt-2">
+                <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)} disabled={isSubmitting}>Cancel</Button>
+                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Posting..." : "Post"}</Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Comments Modal */}
+      {commentsOpenPostId && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-elevated flex flex-col h-[80vh] max-h-[600px]">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
+              <h3 className="text-lg font-semibold text-foreground">Comments</h3>
+              <button onClick={() => setCommentsOpenPostId(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {isLoadingComments ? (
+                <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : comments.length === 0 ? (
+                <div className="text-center text-muted-foreground p-8">No comments yet. Be the first to comment!</div>
+              ) : (
+                comments.map((comment) => (
+                  <div key={comment.id} className="flex space-x-3">
+                    <ImageWithFallback src={comment.avatar} alt={comment.user} className="h-8 w-8 rounded-full object-cover shrink-0" />
+                    <div className="bg-muted/30 rounded-xl p-3 flex-1">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <span className="text-sm font-semibold text-foreground">{comment.user}</span>
+                        <span className="text-xs text-muted-foreground">{comment.timeAgo}</span>
+                      </div>
+                      <p className="text-sm text-foreground">{comment.content}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 border-t border-border shrink-0 bg-muted/10">
+              <form onSubmit={submitComment} className="flex space-x-2">
+                <Input 
+                  value={newComment} 
+                  onChange={(e) => setNewComment(e.target.value)} 
+                  placeholder="Add a comment..." 
+                  className="flex-1"
+                  disabled={isSubmittingComment}
+                />
+                <Button type="submit" disabled={!newComment.trim() || isSubmittingComment}>
+                  {isSubmittingComment ? "Posting..." : "Post"}
+                </Button>
+              </form>
+            </div>
           </div>
         </div>
       )}
