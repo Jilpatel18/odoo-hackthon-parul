@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, expenses: result.rows });
   } catch (error) {
     console.error('Fetch expenses error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch expenses' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Failed to fetch expenses' }, { status: 500 });
   }
 }
 

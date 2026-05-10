@@ -107,12 +107,42 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
 
   try {
     const body = await request.json();
-    const { budget } = body;
+    const { budget, title, destination, start_date, end_date, image } = body;
+
+    const updates = [];
+    const values = [];
+    let queryIndex = 1;
 
     if (budget !== undefined) {
+      updates.push(`budget = $${queryIndex++}`);
+      values.push(budget);
+    }
+    if (title !== undefined) {
+      updates.push(`title = $${queryIndex++}`);
+      values.push(title);
+    }
+    if (destination !== undefined) {
+      updates.push(`description = $${queryIndex++}`);
+      values.push(destination);
+    }
+    if (start_date !== undefined) {
+      updates.push(`start_date = $${queryIndex++}`);
+      values.push(start_date);
+    }
+    if (end_date !== undefined) {
+      updates.push(`end_date = $${queryIndex++}`);
+      values.push(end_date);
+    }
+    if (image !== undefined) {
+      updates.push(`cover_image = $${queryIndex++}`);
+      values.push(image);
+    }
+
+    if (updates.length > 0) {
+      values.push(tripId, session.userId);
       const result = await query(
-        `UPDATE trips SET budget = $1 WHERE id = $2 AND user_id = $3 RETURNING id`,
-        [budget, tripId, session.userId]
+        `UPDATE trips SET ${updates.join(', ')} WHERE id = $${queryIndex++} AND user_id = $${queryIndex} RETURNING id`,
+        values
       );
       if (result.rows.length === 0) {
         return NextResponse.json({ success: false, error: 'Trip not found or unauthorized' }, { status: 404 });

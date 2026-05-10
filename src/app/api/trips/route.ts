@@ -28,7 +28,7 @@ export async function GET() {
     return NextResponse.json({ success: true, trips: result.rows });
   } catch (error) {
     console.error('Fetch trips error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch trips' }, { status: 500 });
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : 'Failed to fetch trips' }, { status: 500 });
   }
 }
 

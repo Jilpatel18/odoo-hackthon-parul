@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User, Bell, Shield, CreditCard, Save, X } from "lucide-react";
+import { User, Bell, Shield, CreditCard, Save, X, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/Card";
@@ -37,6 +37,16 @@ export default function SettingsPage() {
   const [cardNumber, setCardNumber] = useState(defaultBilling.cardNumber);
   const [expiryDate, setExpiryDate] = useState(defaultBilling.expiryDate);
   const [cvv, setCvv] = useState(defaultBilling.cvv);
+
+  const [firstName, setFirstName] = useState(currentUser?.name?.split(/\s+/)[0] || "Traveler");
+  const [lastName, setLastName] = useState(currentUser?.name?.split(/\s+/).slice(1).join(" ") || "");
+  const [email, setEmail] = useState(currentUser?.email || "traveler@example.com");
+  const [bio, setBio] = useState("Passionate traveler, food lover, and photography enthusiast.");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     const loadBilling = async () => {
@@ -124,16 +134,16 @@ export default function SettingsPage() {
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label htmlFor="firstName" className="text-sm font-medium">First Name</label>
-                    <Input id="firstName" defaultValue={currentUser?.name?.split(/\s+/)[0] || "Traveler"} />
+                    <Input id="firstName" value={firstName} onChange={e => setFirstName(e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="lastName" className="text-sm font-medium">Last Name</label>
-                    <Input id="lastName" defaultValue={currentUser?.name?.split(/\s+/).slice(1).join(" ") || ""} />
+                    <Input id="lastName" value={lastName} onChange={e => setLastName(e.target.value)} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="email" className="text-sm font-medium">Email Address</label>
-                  <Input id="email" type="email" defaultValue={currentUser?.email || "traveler@example.com"} />
+                  <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <label htmlFor="bio" className="text-sm font-medium">Bio</label>
@@ -141,13 +151,35 @@ export default function SettingsPage() {
                     id="bio" 
                     rows={4}
                     className="flex w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    defaultValue="Passionate traveler, food lover, and photography enthusiast."
+                    value={bio}
+                    onChange={e => setBio(e.target.value)}
                   />
                 </div>
               </CardContent>
               <CardFooter className="border-t border-border pt-6 flex justify-end">
-                <Button onClick={() => toast.success('Profile details saved successfully!')}>
-                  <Save className="mr-2 h-4 w-4" /> Save Changes
+                <Button 
+                  disabled={isSavingProfile}
+                  onClick={async () => {
+                    setIsSavingProfile(true);
+                    try {
+                      const res = await fetch("/api/account/profile", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ firstName, lastName, email, bio })
+                      });
+                      if (res.ok) {
+                        toast.success('Profile details saved successfully!');
+                      } else {
+                        toast.error('Failed to save profile');
+                      }
+                    } catch {
+                      toast.error('Failed to save profile');
+                    } finally {
+                      setIsSavingProfile(false);
+                    }
+                  }}
+                >
+                  <Save className="mr-2 h-4 w-4" /> {isSavingProfile ? "Saving..." : "Save Changes"}
                 </Button>
               </CardFooter>
             </Card>
@@ -196,16 +228,31 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Current Password</label>
-                  <Input type="password" placeholder="••••••••" />
+                  <div className="relative">
+                    <Input type={showCurrentPassword ? "text" : "password"} placeholder="••••••••" />
+                    <button type="button" onClick={() => setShowCurrentPassword(!showCurrentPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">New Password</label>
-                    <Input type="password" placeholder="••••••••" />
+                    <div className="relative">
+                      <Input type={showNewPassword ? "text" : "password"} placeholder="••••••••" />
+                      <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Confirm New Password</label>
-                    <Input type="password" placeholder="••••••••" />
+                    <div className="relative">
+                      <Input type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" />
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="pt-4 border-t border-border mt-6">

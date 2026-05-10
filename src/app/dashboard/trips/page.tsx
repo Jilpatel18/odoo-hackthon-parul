@@ -125,7 +125,7 @@ export default function TripsPage() {
                 <div className="aspect-[4/3] relative overflow-hidden bg-muted">
                   <div className="absolute top-3 right-3 z-10">
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold shadow-sm
-                      ${trip.status === 'Upcoming' ? 'bg-primary-100 text-primary-800' : 'bg-muted text-muted-foreground'}`}>
+                      ${trip.status === 'Upcoming' ? 'bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-300' : 'bg-muted text-muted-foreground dark:bg-muted/50 dark:text-muted-foreground'}`}>
                       {trip.status}
                     </span>
                   </div>

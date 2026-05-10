@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { motion } from "framer-motion";
-import { Calendar, MapPin, Clock, Plus, MoreHorizontal, CheckCircle2, Circle, Share2, Edit, Layers, ArrowDown, Trash2 } from "lucide-react";
+import { Calendar, MapPin, Clock, Plus, MoreHorizontal, CheckCircle2, Circle, Share2, Edit, Layers, ArrowDown, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import { ImageWithFallback } from "@/components/ui/ImageWithFallback";
 import { BudgetContent } from "@/app/dashboard/budget/page";
 import { PackingContent } from "@/app/dashboard/packing/page";
 import { NotesContent } from "@/app/dashboard/notes/page";
+import { ImageUpload } from "@/components/ui/ImageUpload";
 
 type TripData = {
   id: number;
@@ -20,6 +21,7 @@ type TripData = {
   date: string;
   status: string;
   image: string;
+  budget: number;
 };
 
 type ItineraryDay = {
@@ -39,6 +41,13 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
   const [trip, setTrip] = useState<TripData | null>(null);
   const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDestination, setEditDestination] = useState("");
+  const [editImage, setEditImage] = useState("");
+  const [editBudget, setEditBudget] = useState("");
+  const [isSavingTrip, setIsSavingTrip] = useState(false);
 
   useEffect(() => {
     const fetchTripDetails = async () => {
@@ -191,14 +200,90 @@ export default function TripItineraryPage(props: { params: Promise<{ id: string 
             >
               <Share2 className="mr-2 h-4 w-4" /> Share
             </Button>
-            <Link href="/dashboard/trips">
-              <Button className="bg-primary-600 text-white hover:bg-primary-700">
-                <Edit className="mr-2 h-4 w-4" /> Manage Trips
-              </Button>
-            </Link>
+            <Button 
+              className="bg-primary-600 text-white hover:bg-primary-700"
+              onClick={() => {
+                setEditTitle(trip.title);
+                setEditDestination(trip.destination);
+                setEditImage(trip.image);
+                setEditBudget((trip.budget || 5000).toString());
+                setShowEditModal(true);
+              }}
+            >
+              <Edit className="mr-2 h-4 w-4" /> Edit Trip
+            </Button>
           </div>
         </div>
       </div>
+
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-md rounded-xl shadow-elevated border border-border overflow-hidden">
+            <div className="p-4 border-b border-border flex justify-between items-center">
+              <h3 className="font-semibold text-lg">Edit Trip Details</h3>
+              <button onClick={() => setShowEditModal(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Destination</label>
+                <Input value={editDestination} onChange={e => setEditDestination(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Trip Cover Image</label>
+                <ImageUpload 
+                  value={editImage} 
+                  onChange={setEditImage} 
+                  className="h-40"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Total Budget</label>
+                <Input type="number" value={editBudget} onChange={e => setEditBudget(e.target.value)} />
+              </div>
+            </div>
+            <div className="p-4 border-t border-border flex justify-end gap-3 bg-muted/30">
+              <Button variant="outline" onClick={() => setShowEditModal(false)}>Cancel</Button>
+              <Button 
+                disabled={isSavingTrip}
+                onClick={async () => {
+                  setIsSavingTrip(true);
+                  try {
+                    const res = await fetch(`/api/trips/${params.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        title: editTitle,
+                        destination: editDestination,
+                        image: editImage,
+                        budget: parseFloat(editBudget),
+                      })
+                    });
+                    if (res.ok) {
+                      setTrip({ ...trip, title: editTitle, destination: editDestination, image: editImage, budget: parseFloat(editBudget) });
+                      setShowEditModal(false);
+                      toast.success("Trip updated successfully!");
+                    } else {
+                      toast.error("Failed to update trip");
+                    }
+                  } catch {
+                    toast.error("Failed to update trip");
+                  } finally {
+                    setIsSavingTrip(false);
+                  }
+                }}
+              >
+                {isSavingTrip ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="flex border-b border-border overflow-x-auto hide-scrollbar">

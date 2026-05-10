@@ -237,21 +237,8 @@ export function BudgetContent({ fixedTripId }: { fixedTripId?: string }) {
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 group">
+                <div className="flex items-center gap-2">
                   <p className="text-3xl font-bold text-foreground">{formatCurrency(totalBudget)}</p>
-                  {selectedTripId !== 'all' && (
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity" 
-                      onClick={() => {
-                        setEditBudgetAmount(totalBudget.toString());
-                        setIsEditingBudget(true);
-                      }}
-                    >
-                      <Edit2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  )}
                 </div>
               )}
             </div>

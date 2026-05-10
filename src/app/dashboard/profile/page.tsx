@@ -257,27 +257,6 @@ export default function ProfilePage() {
 
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-semibold text-lg mb-4">Personal Information</h3>
-                <form className="space-y-4" onSubmit={handleSaveProfile}>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" />
-                    <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" />
-                  </div>
-                  <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email address" />
-                  <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location" />
-                  <textarea
-                    rows={4}
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    className="flex w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-                  />
-                  <Button type="submit" className="w-full" disabled={isSaving}>{isSaving ? "Saving..." : "Save Profile"}</Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
                 <h3 className="font-semibold text-lg mb-4 text-foreground">Travel Stats</h3>
                 <div className="space-y-4">
                   <div>
